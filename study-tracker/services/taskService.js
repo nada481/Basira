@@ -1,108 +1,35 @@
-import { supabase } from "@/lib/supabase";
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
-async function getTasks(userID) {
-  const { data, error } = await supabase
-    .from("tasks")
-    .select("*")
-    .eq("user_id", userID);
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
 
-  if (error) {
-    return {
-      error: {
-        message: error.message || "Failed to fetch tasks",
-        status: 400,
+export async function analyzeFocusFrame(base64Frame) {
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+
+  const result = await model.generateContent([
+    {
+      inlineData: {
+        mimeType: 'image/jpeg',
+        data: base64Frame,
       },
-    };
+    },
+    `Analyze this image of a student studying.
+     Respond ONLY with a JSON object, no markdown, no extra text:
+     {"focused": true, "reason": null}
+     or
+     {"focused": false, "reason": "phone_detected" | "not_writing" | "talking"}
+     focused is false if: a phone is visible, the student is not reading/writing, or mouth is moving.`,
+  ])
+
+  const text = result.response.text()
+  console.log('Gemini raw response:', text) // 👈 check your terminal
+
+  const clean = text.replace(/```json|```/g, '').trim()
+
+  try {
+    return JSON.parse(clean)
+  } catch (e) {
+    console.error('Failed to parse Gemini response:', clean)
+    // Fallback — assume focused so we don't spam warnings
+    return { focused: true, reason: null }
   }
-
-  return data;
-}
-
-async function createTask(taskData) {
-  const { data, error } = await supabase
-    .from("tasks")
-    .insert(taskData)
-    .select()
-    .single();
-
-  if (error) {
-    return {
-      error: {
-        message: error.message || "Failed to create task",
-        status: 400,
-      },
-    };
-  }
-
-  return data;
-}
-
-async function updateTask(taskId, updatedData) {
-  const { data, error } = await supabase
-    .from("tasks")
-    .update(updatedData)
-    .eq("id", taskId)
-    .select()
-    .single();
-    if (error) {
-      return {
-        error: {
-          message: error.message || "Failed to update task",
-          status: 400,
-        },
-      };
-    }
-}
-async function deleteTask(taskId) {
-  const { data, error } = await supabase
-    .from("tasks")
-    .delete()
-    .eq("id", taskId)
-    .select()
-    .single();
-    if (error) {
-      return {
-        error: {
-          message: error.message || "Failed to delete task",   
-           status: 400,
-        },
-      };
-    }
-    return data;}
-
-async function getTaskById(taskId) {
-  const { data, error } = await supabase
-    .from("tasks")
-    .select("*")
-    .eq("id", taskId)
-    .single(); 
-    if (error) {
-      if (error) {
-        return {
-          error: {
-            message: "Task not found",
-            status: 404,
-          },
-        };  
-      }
-    }
-    return data;
-}
-
-async function changeTaskStatus(taskId, completeTask) {
-    const { data, error } = await supabase
-      .from("tasks")
-      .update({ completeTask: completeTask })
-      .eq("id", taskId)
-      .select()
-      .single();
-      if (error) {
-        return {
-          error: {
-            message: error.message || "Failed to change task status",
-            status: 400,
-          },
-        };
-      }
-    return data;    
 }

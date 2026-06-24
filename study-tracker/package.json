@@ -12,7 +12,8 @@
     "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.108.2",
     "dotenv": "^17.4.2",
-    "next": "^9.3.3",
+    "lucide-react": "^1.21.0",
+    "next": "^16.2.9",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
