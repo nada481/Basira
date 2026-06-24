@@ -4,12 +4,17 @@
   "description": "Luqma is an AI-powered nutrition and meal planning application designed to help users create personalized meal recommendations based on their dietary preferences, allergies, health goals, and available kitchen ingredients.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@google/generative-ai": "^0.24.1"
+    "@google/generative-ai": "^0.24.1",
+    "next": "^16.2.9",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
   }
 }
