@@ -1,35 +1,55 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
-
-export async function analyzeFocusFrame(base64Frame) {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
-
-  const result = await model.generateContent([
-    {
-      inlineData: {
-        mimeType: 'image/jpeg',
-        data: base64Frame,
-      },
-    },
-    `Analyze this image of a student studying.
-     Respond ONLY with a JSON object, no markdown, no extra text:
-     {"focused": true, "reason": null}
-     or
-     {"focused": false, "reason": "phone_detected" | "not_writing" | "talking"}
-     focused is false if: a phone is visible, the student is not reading/writing, or mouth is moving.`,
-  ])
-
-  const text = result.response.text()
-  console.log('Gemini raw response:', text) // 👈 check your terminal
-
-  const clean = text.replace(/```json|```/g, '').trim()
-
-  try {
-    return JSON.parse(clean)
-  } catch (e) {
-    console.error('Failed to parse Gemini response:', clean)
-    // Fallback — assume focused so we don't spam warnings
-    return { focused: true, reason: null }
-  }
+import {supabase} from '@/lib/supabase'
+ 
+export async function getTasksByStudent(userID) {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('userID', userID)
+ 
+  if (error) throw new Error(error.message)
+  return data
+}
+ 
+export async function getTaskById(taskId) {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('id', taskId)
+    .single()
+ 
+  if (error) throw new Error(error.message)
+  return data
+}
+ 
+export async function completeTask(taskId) {
+  const { error } = await supabase
+    .from('tasks')
+    .update({ status: 'complete' })
+    .eq('id', taskId)
+ 
+  if (error) throw new Error(error.message)
+}
+ 
+export async function markTaskOvertime(taskId) {
+  const { error } = await supabase
+    .from('tasks')
+    .update({ TaskOvertime: true })
+    .eq('id', taskId)
+ 
+  if (error) throw new Error(error.message)
+}
+ 
+// for logging task sessions (time spent on a task) - more than the estimated time created by the teacher
+export async function logTaskSession({ taskId, userID, timeSpent, overtimeTriggered }) {
+  const { error } = await supabase
+    .from('task_sessions')
+    .insert({
+      Id: taskId,
+      userID: userID,
+      time_spent: timeSpent,
+      overtime_triggered: overtimeTriggered,
+      created_at: new Date().toISOString(),
+    })
+ 
+  if (error) throw new Error(error.message)
 }

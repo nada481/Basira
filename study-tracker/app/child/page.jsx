@@ -1,8 +1,10 @@
 'use client'
-
+import {useRouter} from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import { BookOpen, CheckSquare, TrendingUp, Users, X, Menu, Video, Monitor, Play, Pause, Settings, Wifi } from 'lucide-react'
 import FocusCamera from '@/components/FocusCamera'
+
+
 
 const SESSION_GOALS = [
   { id: 1, label: 'Complete Chapter 4 reading' },
@@ -10,12 +12,14 @@ const SESSION_GOALS = [
   { id: 3, label: 'Review vocabulary list' },
 ]
 
+
 const NAV_ITEMS = [
-  { label: 'Study Area', icon: BookOpen },
-  { label: 'Tasks',      icon: CheckSquare },
-  { label: 'Growth',     icon: TrendingUp },
-  { label: 'Family',     icon: Users },
+  { label: 'Study Area', icon: BookOpen,    href: '/child' },
+  { label: 'Tasks',      icon: CheckSquare, href: '/child/Task' },
+  { label: 'Growth',     icon: TrendingUp,  href: '/child/growth' },
+  { label: 'Connection',     icon: Users,       href: '/child/family' },
 ]
+
 
 export default function ChildStudyPage() {
   const [goals, setGoals]               = useState(SESSION_GOALS.map(g => ({ ...g, done: false })))
@@ -24,6 +28,7 @@ export default function ChildStudyPage() {
   const [isPaused, setIsPaused]         = useState(false)
   const [menuOpen, setMenuOpen]         = useState(false)
   const [activeNav, setActiveNav]       = useState('Study Area')
+  const router = useRouter()
 
   // Screen share state
   const [isSharing, setIsSharing]       = useState(false)
