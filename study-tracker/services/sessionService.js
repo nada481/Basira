@@ -27,3 +27,6 @@ export async function logPageTime({ previousPage, currentPage, timeSpent }) {
         return data 
 
 }
+
+// get session ID from supabase auth, complete session, create session, edit session for adding the document.
+
