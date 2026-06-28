@@ -1,5 +1,6 @@
-import supabase from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 
+// ── Get a profile by user ID ──────────────────────────────────────────────────
 export async function getProfile(userId) {
   const { data, error } = await supabase
     .from('profiles')
@@ -11,19 +12,13 @@ export async function getProfile(userId) {
   return data
 }
 
+// ── Get display name (falls back: display_name → full_name → email) ───────────
 export async function getStudentName(userId) {
   const profile = await getProfile(userId)
   return profile.display_name ?? profile.full_name ?? profile.email ?? 'Student'
 }
-export async function getTeacherName(userId) {
-  const profile = await getProfile(userId)
-  return profile.display_name ?? profile.full_name ?? profile.email ?? 'Teacher'
-}
-export async function getParentName(userId) {
-  const profile = await getProfile(userId)
-  return profile.display_name ?? profile.full_name ?? profile.email ?? 'Parent'
-}
 
+// ── Get profile with role name ────────────────────────────────────────────────
 export async function getProfileWithRole(userId) {
   const { data, error } = await supabase
     .from('profiles')
@@ -38,6 +33,7 @@ export async function getProfileWithRole(userId) {
   return data
 }
 
+// ── Update display name ───────────────────────────────────────────────────────
 export async function updateDisplayName(userId, displayName) {
   const { error } = await supabase
     .from('profiles')
@@ -45,8 +41,4 @@ export async function updateDisplayName(userId, displayName) {
     .eq('id', userId)
 
   if (error) throw new Error(error.message)
-}
-
-export async function getAllStudents(){
-    const { data, error } = await supabase.from('profiles')
 }

@@ -1,13 +1,18 @@
-import supabase from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
+
+
 
 export async function getLinkedChildren(parentId) {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, full_name, display_name, avatar_url, created_at')
-    .eq('parent_id', parentId)
+  console.log("parentId:", parentId);
 
-  if (error) throw new Error(error.message)
-  return data
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('parent_id', parentId);
+
+  if (error) throw new Error(error.message);
+
+  return data;
 }
 
 // ── Get today's study time for a child (in seconds) ───────────────────────────
@@ -88,4 +93,20 @@ export async function getChildProgressReport(childId) {
   if (screenError) throw new Error(screenError.message)
 
   return { stuckPages, overTimeTasks, screenNotes }
+}
+
+export async function getChildEffortLevel(childId) {
+  const { data, error } = await supabase
+    .from('focus_events')
+    .select('distraction_duration')
+    .eq('userID', childId)
+    .gte('detected_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+
+  if (error) throw new Error(error.message)
+
+  const totalDistracted = (data ?? []).reduce((s, r) => s + (r.distraction_duration ?? 0), 0)
+
+  if (totalDistracted < 60)  return 'High'
+  if (totalDistracted < 300) return 'Medium'
+  return 'Low'
 }

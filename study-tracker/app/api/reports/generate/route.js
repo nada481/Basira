@@ -12,7 +12,7 @@ export async function POST(req) {
   try {
     const { studentId, sessionId } = await req.json()
 
-    // 1. Get student name + all data via existing services
+    // Get student name and all data from the existing services
     const [studentName, data] = await Promise.all([
       getStudentName(studentId),
       collectReportData(studentId, sessionId),
@@ -27,7 +27,7 @@ export async function POST(req) {
       stuckPages,
     } = data
 
-    // 2. Build readable context strings
+    // Build context to read
     const completedTasks = tasks
       .filter(t => t.status === 'complete')
       .map(t => t.title).join(', ') || 'none'
@@ -54,7 +54,7 @@ export async function POST(req) {
 
     const teacherNotified = stuckPages.length > 0 ? 'yes' : 'no'
 
-    // 3. Ask Anthropic to write the narrative
+    // Ask AI to write the narrative
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
