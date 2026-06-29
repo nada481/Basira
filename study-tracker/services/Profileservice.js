@@ -1,24 +1,29 @@
 import { supabase } from '@/lib/supabase'
 
-// ── Get a profile by user ID ──────────────────────────────────────────────────
+// Get a profile by user ID:
 export async function getProfile(userId) {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, full_name, display_name, email, avatar_url, role_id')
-    .eq('id', userId)
-    .single()
+  console.log("Looking for profile:", userId);
 
-  if (error) throw new Error(error.message)
-  return data
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, full_name, display_name, email, avatar_url, role_id")
+    .eq("id", userId)
+    .maybeSingle();
+
+  console.log({ data, error });
+  console.log("Looking for profile:", userId);
+  if (error) throw new Error(error.message);
+
+  return data;
 }
 
-// ── Get display name (falls back: display_name → full_name → email) ───────────
+// Get display name (falls back: display_name → full_name → email) 
 export async function getStudentName(userId) {
   const profile = await getProfile(userId)
   return profile.display_name ?? profile.full_name ?? profile.email ?? 'Student'
 }
 
-// ── Get profile with role name ────────────────────────────────────────────────
+// Get profile with role name 
 export async function getProfileWithRole(userId) {
   const { data, error } = await supabase
     .from('profiles')
@@ -33,7 +38,7 @@ export async function getProfileWithRole(userId) {
   return data
 }
 
-// ── Update display name ───────────────────────────────────────────────────────
+//  Update display name 
 export async function updateDisplayName(userId, displayName) {
   const { error } = await supabase
     .from('profiles')

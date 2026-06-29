@@ -16,7 +16,7 @@ const SESSION_GOALS = [
 const NAV_ITEMS = [
   { label: 'Study Area', icon: BookOpen,    href: '/child' },
   { label: 'Tasks',      icon: CheckSquare, href: '/child/Task' },
-  { label: 'Growth',     icon: TrendingUp,  href: '/child/growth' },
+  { label: 'Growth',     icon: TrendingUp,  href: '/child/Growth' },
   { label: 'Connection',     icon: Users,       href: '/child/family' },
 ]
 
@@ -64,7 +64,8 @@ export default function ChildStudyPage() {
   const formatTime  = (s)  => `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`
   const remaining   = goals.filter(g => !g.done).length
 
-  // ── Screen share ───────────────────────────────────────────────────────────
+  //  Screen share part
+
   async function startScreenShare() {
     setShareError(null)
     try {
@@ -96,9 +97,9 @@ export default function ChildStudyPage() {
   }
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="w-full px-8 py-6">
 
-      {/* ── Slide-in sidebar menu ────────────────────────────────────────────── */}
+      {/*  Slide-in sidebar menu */}
       {menuOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
@@ -111,12 +112,12 @@ export default function ChildStudyPage() {
           menuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        {/* Sidebar header */}
+        {/* Header */}
         <div className="flex items-center justify-between px-5 py-5 border-b border-gray-100">
           <span className="text-lg font-bold text-[#8B1A4A]">Basira</span>
           <button
             onClick={() => setMenuOpen(false)}
-            className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
+            className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500"
           >
             <X className="w-5 h-5" />
           </button>
@@ -127,7 +128,11 @@ export default function ChildStudyPage() {
           {NAV_ITEMS.map(item => (
             <button
               key={item.label}
-              onClick={() => { setActiveNav(item.label); setMenuOpen(false) }}
+              onClick={() => { 
+                router.push(item.href)
+                setActiveNav(item.label)
+                setMenuOpen(false)
+               }}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left ${
                 activeNav === item.label
                   ? 'bg-pink-50 text-[#8B1A4A]'
@@ -168,7 +173,7 @@ export default function ChildStudyPage() {
         </div>
       </aside>
 
-      {/* ── Header ───────────────────────────────────────────────────────────── */}
+      {/*  Header  */}
       <header className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
         <div className="flex items-center gap-3">
           {/* Hamburger */}
@@ -281,7 +286,7 @@ export default function ChildStudyPage() {
           </div>
         </div>
 
-        {/* ── Timer controls ───────────────────────────────────────────────── */}
+        {/*  Timer controls */}
         <div className="bg-white border border-gray-200 rounded-2xl px-5 py-4 shadow-sm flex items-center justify-between gap-3">
 
           <div className="flex flex-col leading-tight">
@@ -294,7 +299,7 @@ export default function ChildStudyPage() {
           </div>
 
           <div className="flex items-center gap-2 text-gray-400">
-            {/* Camera toggle (visual only — FocusCamera manages the actual stream) */}
+            {/* Camera toggle */}
             <button
               className={`p-2 rounded-lg transition-colors ${sessionActive ? 'hover:bg-gray-100 text-gray-500' : 'opacity-30 cursor-not-allowed'}`}
               title="Camera"
@@ -303,7 +308,7 @@ export default function ChildStudyPage() {
               <Video className="w-5 h-5" />
             </button>
 
-            {/* Screen share button — FUNCTIONAL */}
+            {/* Screen share button  */}
             <button
               onClick={toggleScreenShare}
               disabled={!sessionActive}

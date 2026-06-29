@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { getTasksByStudent } from '@/services/taskService'
 import TaskCard from '@/components/TaskList'
 import {
@@ -15,7 +16,7 @@ import {
 const NAV_ITEMS = [
   { label: 'Study Area', icon: BookOpen, href: '/child' },
   { label: 'Tasks', icon: CheckSquare, href: '/child/Task' },
-  { label: 'Growth', icon: TrendingUp, href: '/child/growth' },
+  { label: 'Growth', icon: TrendingUp, href: '/child/Growth' },
   { label: 'Connection', icon: Users, href: '/child/family' },
 ]
 
@@ -25,11 +26,13 @@ export default function TaskPage() {
   const [filter, setFilter] = useState('ALL')
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeNav, setActiveNav] = useState('Tasks')
+  const router = useRouter()
+  
 
   useEffect(() => {
     async function load() {
       try {
-        const data = await getTasksByStudent(1) // replace later with real userID
+        const data = await getTasksByStudent(1) 
         setTasks(data)
       } catch (err) {
         console.error(err)
@@ -47,7 +50,7 @@ export default function TaskPage() {
   })
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-6">
+    <main className="w-full px-8 py-6">
       <div className="flex items-center gap-3 mb-1">
         <button
           onClick={() => setMenuOpen(true)}
@@ -89,25 +92,28 @@ export default function TaskPage() {
         </div>
 
         {/* Nav */}
+{/* Nav links */}
         <nav className="flex flex-col gap-1 px-3 py-4 flex-1">
           {NAV_ITEMS.map(item => (
             <button
               key={item.label}
-              onClick={() => {
+              onClick={() => { 
+                router.push(item.href)
                 setActiveNav(item.label)
                 setMenuOpen(false)
-              }}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-left transition-colors ${
+               }}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left ${
                 activeNav === item.label
                   ? 'bg-pink-50 text-[#8B1A4A]'
                   : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
-              <item.icon className="w-4 h-4" />
+              <item.icon className="w-4 h-4 shrink-0" />
               {item.label}
             </button>
           ))}
         </nav>
+
 
         {/* Family Connect (cleaned) */}
         <div className="mx-3 mb-5 rounded-2xl bg-pink-50 border border-pink-100 p-4">

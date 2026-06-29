@@ -1,4 +1,4 @@
-import supabase from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 
 export async function startTimer({ userId, taskId }) {
   const { data, error } = await supabase
@@ -46,7 +46,7 @@ export async function getTimerHistory(userId) {
     .from('timer')
     .select(`
       *,
-      tasks ( title, subject )
+      tasks ( taskName, subject )
     `)
     .eq('userID', userId)
     .order('start_time', { ascending: false })
