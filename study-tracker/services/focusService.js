@@ -1,6 +1,8 @@
 import { supabase } from '@/lib/supabase'
 
 // Create a new focus event (called every time AI detects distraction)
+
+
 export async function logFocusEvent({
   sessionId,
   userId,

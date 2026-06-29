@@ -47,3 +47,34 @@ export async function updateDisplayName(userId, displayName) {
 
   if (error) throw new Error(error.message)
 }
+
+export async function getStudentParent(userId) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select(`
+      parent_id,
+      parent:profiles!profiles_parent_id_fkey (
+        id, full_name, display_name, email, avatar_url,
+        roles ( name )
+      )
+    `)
+    .eq('id', userId)
+    .single()
+
+  if (error) throw new Error(error.message)
+  return data.parent ?? null
+}
+
+// Get all teachers — profiles whose role name is 'teacher'
+export async function getTeachers() {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select(`
+      id, full_name, display_name, email, avatar_url,
+      roles ( name )
+    `)
+    .eq('roles.name', 'teacher')
+
+  if (error) throw new Error(error.message)
+  return data ?? []
+}

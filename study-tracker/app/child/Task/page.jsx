@@ -17,7 +17,7 @@ const NAV_ITEMS = [
   { label: 'Study Area', icon: BookOpen, href: '/child' },
   { label: 'Tasks', icon: CheckSquare, href: '/child/Task' },
   { label: 'Growth', icon: TrendingUp, href: '/child/Growth' },
-  { label: 'Connection', icon: Users, href: '/child/family' },
+  { label: 'Connection', icon: Users, href: '/child/Connections' },
 ]
 
 export default function TaskPage() {
@@ -32,7 +32,7 @@ export default function TaskPage() {
   useEffect(() => {
     async function load() {
       try {
-        const data = await getTasksByStudent(1) 
+        const data = await getTasksByStudent('cccccccc-0000-0000-0000-000000000001') 
         setTasks(data)
       } catch (err) {
         console.error(err)

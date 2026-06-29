@@ -17,7 +17,7 @@ const NAV_ITEMS = [
   { label: 'Study Area', icon: BookOpen,    href: '/child' },
   { label: 'Tasks',      icon: CheckSquare, href: '/child/Task' },
   { label: 'Growth',     icon: TrendingUp,  href: '/child/growth' },
-  { label: 'Connection', icon: Users,       href: '/child/family' },
+  { label: 'Connection', icon: Users,       href: '/child/Connections' },
 ]
 
 const STUDENT_ID = 'cccccccc-0000-0000-0000-000000000001'

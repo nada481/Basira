@@ -17,7 +17,7 @@ const NAV_ITEMS = [
   { label: 'Study Area', icon: BookOpen,    href: '/child' },
   { label: 'Tasks',      icon: CheckSquare, href: '/child/Task' },
   { label: 'Growth',     icon: TrendingUp,  href: '/child/Growth' },
-  { label: 'Connection',     icon: Users,       href: '/child/family' },
+  { label: 'Connection',     icon: Users,       href: '/child/Connections' },
 ]
 
 
@@ -202,9 +202,9 @@ export default function ChildStudyPage() {
         </button>
       </header>
 
-      <div className="max-w-2xl mx-auto px-4 py-6 flex flex-col gap-5">
+      <div className="px-8 py-6 flex flex-col gap-5">
 
-        {/* ── Camera / Screen preview ──────────────────────────────────────────── */}
+        {/*  Camera / Screen preview  */}
         <div className="w-full rounded-2xl overflow-hidden bg-gray-100 relative" style={{ aspectRatio: '16/9' }}>
           {/* Screen share preview — shown when sharing */}
           {isSharing && (
