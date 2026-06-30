@@ -91,7 +91,8 @@ export default function ConnectionsPage() {
       {loading
         ? <><SkeletonCard /><SkeletonCard /></>
         : teachers.length > 0
-          ? teachers.map((teacher, i) => <ConnCard key={teacher.id} profile={teacher} index={i + 1} showProgress />)
+          ? teachers.map((teacher, i) => <ConnCard key={`${teacher.id}-${i}`} profile={teacher} index={i + 1} showProgress />)
+
           : <p className="text-sm text-gray-300 py-3">No teachers assigned yet.</p>
       }
       <AddCard label="Add Connection" sublabel="Link a new tutor or family member" />

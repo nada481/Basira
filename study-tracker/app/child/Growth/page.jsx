@@ -11,7 +11,6 @@ import NextGoal          from '@/components/growth/NextGoal'
 import { getTotalStudyTime, getTimerHistory } from '@/services/timerService'
 import { getTasksByStudent }                  from '@/services/taskService'
 import { getMonthlyStats }                    from '@/services/reportService'
-import { getProfile }                         from '@/services/profileService'
 
 const NAV_ITEMS = [
   { label: 'Study Area', icon: BookOpen,    href: '/child' },
@@ -38,15 +37,15 @@ export default function GrowthPage() {
   useEffect(() => {
     async function load() {
       try {
-        const [prof, total, allTasks, monthlyStats, history] = await Promise.all([
-          getProfile(STUDENT_ID),
+        const [profRes, total, allTasks, monthlyStats, history] = await Promise.all([
+          fetch('/api/profile', { headers: { 'x-user-id': STUDENT_ID } }).then(r => r.json()),
           getTotalStudyTime(STUDENT_ID),
           getTasksByStudent(STUDENT_ID),
           getMonthlyStats(STUDENT_ID, now.getFullYear(), now.getMonth() + 1),
           getTimerHistory(STUDENT_ID),
         ])
 
-        setProfile(prof)
+        setProfile(profRes.profile)
         setTotal(total)
         setTasks(allTasks)
         setMonthly(monthlyStats)

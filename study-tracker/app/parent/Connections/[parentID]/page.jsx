@@ -10,12 +10,11 @@ import {
   getChildEffortLevel,
   linkChildByEmail,
 } from '@/services/parentService'
-import { getProfile } from '@/services/profileService'
 
 const NAV_ITEMS = [
   { label: 'Home',     icon: Home },
   { label: 'Progress', icon: BarChart2 },
-  { label: 'Family',   icon: Users },
+  { label: 'Connections',   icon: Users , href: '/parent/[parentID]'},
 ]
 
 export default function ParentFamilyPage({ params }) {
@@ -23,7 +22,7 @@ export default function ParentFamilyPage({ params }) {
   const router = useRouter()
 
   const [menuOpen, setMenuOpen]     = useState(false)
-  const [activeNav, setActiveNav]   = useState('Family')
+  const [activeNav, setActiveNav]   = useState('Connections')
   const [parent, setParent]         = useState(null)
   const [children, setChildren]     = useState([])
   const [loading, setLoading]       = useState(true)
@@ -35,12 +34,11 @@ export default function ParentFamilyPage({ params }) {
   useEffect(() => {
     async function load() {
       try {
-        const [profile, kids] = await Promise.all([
-          getProfile(parentId),
+        const [profRes, kids] = await Promise.all([
+          fetch('/api/profile', { headers: { 'x-user-id': parentId } }).then(r => r.json()),
           getLinkedChildren(parentId),
         ])
 
-        // Enrich each child with today's time + effort
         const enriched = await Promise.all(
           kids.map(async (child) => {
             const [todaySeconds, effortLevel] = await Promise.all([
@@ -51,7 +49,7 @@ export default function ParentFamilyPage({ params }) {
           })
         )
 
-        setParent(profile)
+        setParent(profRes.profile)
         setChildren(enriched)
       } catch (err) {
         console.error(err)
@@ -71,7 +69,6 @@ export default function ParentFamilyPage({ params }) {
     try {
       const newChild = await linkChildByEmail(parentId, linkEmail.trim())
 
-      // Enrich the new child and add to list
       const [todaySeconds, effortLevel] = await Promise.all([
         getChildTodayTime(newChild.id),
         getChildEffortLevel(newChild.id),
@@ -93,12 +90,10 @@ export default function ParentFamilyPage({ params }) {
   return (
     <div className="min-h-screen bg-gray-50 flex">
 
-      {/* ── Sidebar overlay (mobile) ─────────────────────────────────────────── */}
       {menuOpen && (
         <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm lg:hidden" onClick={() => setMenuOpen(false)} />
       )}
 
-      {/* ── Sidebar ───────────────────────────────────────────────────────────── */}
       <aside className={`
         fixed lg:static top-0 left-0 h-full w-56 bg-white border-r border-gray-100 z-50
         flex flex-col transition-transform duration-300
@@ -136,15 +131,12 @@ export default function ParentFamilyPage({ params }) {
         </button>
       </aside>
 
-      {/* ── Main ─────────────────────────────────────────────────────────────── */}
       <main className="flex-1 px-6 py-8 flex flex-col gap-6">
 
-        {/* Mobile menu button */}
         <button onClick={() => setMenuOpen(true)} className="lg:hidden self-start p-2 hover:bg-gray-100 rounded-lg text-gray-500 -mt-2">
           <Menu className="w-5 h-5" />
         </button>
 
-        {/* Page title */}
         <div>
           <h1 className="text-2xl font-bold text-[#8B1A4A]">Family Management</h1>
           <p className="text-xs text-gray-400 mt-1 max-w-md">
@@ -152,18 +144,15 @@ export default function ParentFamilyPage({ params }) {
           </p>
         </div>
 
-        {/* Children cards + link card */}
         {loading ? (
           <p className="text-sm text-gray-400">Loading...</p>
         ) : (
           <div className="flex flex-wrap gap-4">
 
-            {/* Child cards */}
             {children.map(child => (
               <ChildCard key={child.id} child={child} />
             ))}
 
-            {/* Link New Account card */}
             <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex flex-col gap-4 min-w-[220px] max-w-[260px]">
               <div className="flex flex-col items-center gap-2 text-center">
                 <div className="w-12 h-12 rounded-full bg-pink-50 border border-pink-100 flex items-center justify-center">

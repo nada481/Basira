@@ -1,4 +1,4 @@
-import { supabaseAdmin as supabase } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin'
 
 // Get a profile by user ID:
 export async function getProfile(userId) {
@@ -49,7 +49,7 @@ export async function getStudentParent(userId) {
     .from('profiles')
     .select('parent_id')
     .eq('id', userId)
-    .maybeSingle()   // ← FIX: returns a single object, not an array
+    .maybeSingle()
 
   if (studentError) throw new Error(studentError.message)
   if (!student?.parent_id) return null
@@ -86,19 +86,22 @@ export async function getStudentTeachers(studentId) {
 
   if (classError) throw new Error(classError.message)
 
-  return classes.map(c => c.teacher)
+  const teachers = classes.map(c => c.teacher).filter(Boolean)
+
+  // Dedupe — a teacher may teach multiple classes the student is enrolled in
+  const uniqueTeachers = Array.from(
+    new Map(teachers.map(t => [t.id, t])).values()
+  )
+
+  return uniqueTeachers
 }
 
 export async function addParentToStudent(studentId, parentId) {
-  console.log('addParentToStudent called with:', { studentId, parentId })
-
   const { data, error } = await supabase
     .from('profiles')
     .update({ parent_id: parentId })
     .eq('id', studentId)
     .select()
-
-  console.log('update result:', { data, error })
 
   if (error) throw new Error(error.message)
   if (!data || data.length === 0) {
@@ -110,7 +113,7 @@ export async function getStudent(userId) {
   const { data, error } = await supabase
     .from('profiles')
     .select('id')
-    .eq('id', userId)   
+    .eq('id', userId)
     .single()
 
   if (error) throw new Error(error.message)

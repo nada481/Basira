@@ -1,112 +1,102 @@
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin'
 
-
-
-export async function getLinkedChildren(parentId) {
-  console.log("parentId:", parentId);
-
+// ── 1. Parent name ─────────────────────────────────────────────────────────
+export async function getParentName(parentId) {
   const { data, error } = await supabase
-    .from('tasks')
-    .select('*')
-    .eq('parent_id', parentId);
-
-  if (error) throw new Error(error.message);
-
-  return data;
-}
-
-// ── Get today's study time for a child (in seconds) ───────────────────────────
-export async function getChildTodayTime(childId) {
-  const startOfDay = new Date()
-  startOfDay.setHours(0, 0, 0, 0)
-
-  const { data, error } = await supabase
-    .from('timer')
-    .select('total_seconds, finish_time, start_time')
-    .eq('userID', childId)
-    .gte('start_time', startOfDay.toISOString())
+    .from('profiles')
+    .select('display_name, full_name, email')
+    .eq('id', parentId)
+    .maybeSingle()
 
   if (error) throw new Error(error.message)
-
-  return data.reduce((sum, row) => {
-    if (row.total_seconds) return sum + row.total_seconds
-    // still active — calculate from start_time
-    if (!row.finish_time) {
-      const elapsed = Math.floor((Date.now() - new Date(row.start_time)) / 1000)
-      return sum + elapsed
-    }
-    return sum
-  }, 0)
+  return data?.display_name ?? data?.full_name ?? data?.email ?? 'Parent'
 }
 
-export async function linkChildByEmail(parentId, childEmail) {
-  const { data: child, error: findError } = await supabase
+// ── 2. Children linked to this parent ───────────────────────────────────────
+export async function getLinkedChildren(parentId) {
+  const { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, parent_id')
-    .eq('email', childEmail)
-    .single()
+    .select('id, full_name, display_name, email, avatar_url')
+    .eq('parent_id', parentId)
 
-  if (findError || !child) throw new Error('Student not found with that email.')
-  if (child.parent_id) throw new Error('Student is already linked to a parent.')
+  if (error) throw new Error(error.message)
+  return data ?? []
+}
 
-  
-  const { error } = await supabase
+// ── 3. Child's grade (parsed from class name, e.g. "Grade 5 Mathematics") ──
+export async function getChildGrade(studentId) {
+  const { data: enrollment, error: enrollError } = await supabase
+    .from('class_students')
+    .select('class_id')
+    .eq('student_id', studentId)
+    .limit(1)
+    .maybeSingle()
+
+  if (enrollError) throw new Error(enrollError.message)
+  if (!enrollment) return null
+
+  const { data: cls, error: classError } = await supabase
+    .from('classes')
+    .select('name')
+    .eq('id', enrollment.class_id)
+    .maybeSingle()
+
+  if (classError) throw new Error(classError.message)
+  if (!cls?.name) return null
+
+  // Extract "Grade 5" from "Grade 5 Mathematics"
+  const match = cls.name.match(/Grade\s*\d+/i)
+  return match ? match[0] : cls.name
+}
+
+// ── 4. Total focus/study time today for a child => call getTotalStudyTime(student ID)
+
+
+//Link a child to this parent by email 
+export async function linkChildByEmail(parentId, email) {
+  const { data: student, error: findError } = await supabase
+    .from('profiles')
+    .select('id, full_name, display_name, email, avatar_url')
+    .eq('email', email)
+    .maybeSingle()
+
+  if (findError) throw new Error(findError.message)
+  if (!student) throw new Error('No student account found with that email.')
+
+  const { error: updateError } = await supabase
     .from('profiles')
     .update({ parent_id: parentId })
-    .eq('id', child.id)
+    .eq('id', student.id)
 
-  if (error) throw new Error(error.message)
-  return child
+  if (updateError) throw new Error(updateError.message)
+  return student
 }
 
-// ── Get progress report summary for a child ───────────────────────────────────
-export async function getChildProgressReport(childId) {
-  // Stuck pages
-  const { data: stuckPages, error: stuckError } = await supabase
-    .from('page_tracking')
-    .select('page_number, time_spent_seconds, ai_diagnosis, ai_material_suggestion, notified_at')
-    .eq('userID', childId)
-    .eq('got_stuck', true)
-    .order('notified_at', { ascending: false })
-    .limit(5)
-
-  if (stuckError) throw new Error(stuckError.message)
-
-  const { data: overTimeTasks, error: overtimeError } = await supabase
-    .from('task_sessions')
-    .select('task_id, time_spent, created_at, tasks(title, subject)')
-    .eq('user_id', childId)
-    .eq('overtime_triggered', true)
-    .order('created_at', { ascending: false })
-    .limit(5)
-
-  if (overtimeError) throw new Error(overtimeError.message)
-
-  const { data: screenNotes, error: screenError } = await supabase
-    .from('focus_events')
-    .select('screen_note, detected_at')
-    .eq('user_id', childId)
-    .eq('screen_flagged', true)
-    .order('detected_at', { ascending: false })
-    .limit(5)
-
-  if (screenError) throw new Error(screenError.message)
-
-  return { stuckPages, overTimeTasks, screenNotes }
-}
-
-export async function getChildEffortLevel(childId) {
+// ── 7. Recently completed tasks for a child ─────────────────────────────────
+export async function getRecentCompletedTasks(studentId, limit = 3) {
   const { data, error } = await supabase
-    .from('focus_events')
-    .select('distraction_duration')
-    .eq('userID', childId)
-    .gte('detected_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+    .from('tasks')
+    .select('id, taskName, subject, completeTask')
+    .eq('student_id', studentId)
+    .eq('completeTask', true)
+    .limit(limit)
 
   if (error) throw new Error(error.message)
+  return data ?? []
+}
 
-  const totalDistracted = (data ?? []).reduce((s, r) => s + (r.distraction_duration ?? 0), 0)
+export async function isTaskComplete(taskId,userID) {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('completeTask')
+    .eq('userID', userID)
+    .eq('id', taskId)
+    .maybeSingle()
 
-  if (totalDistracted < 60)  return 'High'
-  if (totalDistracted < 300) return 'Medium'
-  return 'Low'
+  if (error) throw new Error(error.message)
+  return data?.completeTask ?? false
+}
+
+export function getParentTip() {
+  return "Consistent short study sessions tend to be more effective than long cramming sessions. Encourage regular breaks every 25–30 minutes."
 }

@@ -1,5 +1,4 @@
-import { supabase } from '@/lib/supabase'
-
+import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin'
 export async function startTimer({ userId, taskId }) {
   const { data, error } = await supabase
     .from('timer')
@@ -78,4 +77,18 @@ export async function getTotalStudyTimeForTask(userId, taskId) {
 
     if (error) throw new Error(error.message)
     return data.reduce((sum, row) => sum + (row.total_seconds ?? 0), 0)
+}
+
+//new function to get the finish time of a specific task for a user
+export async function getFinishedTasksTime(userId, taskId) {
+
+  // 
+  const { data, error } = await supabase
+    .from('timer')
+    .select('finish_time')
+    .eq('userID', userId)
+    .eq('task_id', taskId)
+
+  if (error) throw new Error(error.message)
+  return data
 }
