@@ -1,10 +1,12 @@
 import { IconAddUser } from './icons'
 
-export default function AddCard({ label, sublabel }) {
+export default function AddCard({ label, sublabel, onClick }) {
   return (
     <div
       role="button"
       tabIndex={0}
+      onClick={onClick}
+      onKeyDown={e => { if (e.key === 'Enter' && onClick) onClick() }}
       style={{
         background: '#fff', border: '1.5px dashed #ddd',
         borderRadius: 10, padding: '16px 20px',

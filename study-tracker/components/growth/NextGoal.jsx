@@ -1,6 +1,6 @@
 'use client'
 
-import DonutChart from './DonutChart'
+import DonutChart from '../charts/DonutChart'
 
 export default function NextGoal({ pct, h, m }) {
   return (
@@ -19,7 +19,7 @@ export default function NextGoal({ pct, h, m }) {
       <div className="mt-4 bg-pink-50 rounded-xl px-4 py-2.5 flex items-center gap-2">
         <span className="text-sm">✨</span>
         <p className="text-xs text-[#8B1A4A] font-medium">
-          {pct >= 100 ? 'Goal achieved! Amazing work! 🎉' : "You're almost there! Keep pushing forward."}
+          {pct >= 100 ? 'Goal achieved! Amazing work!' : "You're almost there! Keep pushing forward."}
         </p>
       </div>
     </div>

@@ -2,7 +2,7 @@
 import {useRouter} from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import { BookOpen, CheckSquare, TrendingUp, Users, X, Menu, Video, Monitor, Play, Pause, Settings, Wifi } from 'lucide-react'
-import FocusCamera from '@/components/FocusCamera'
+import FocusCamera from '@/components/session/FocusCamera'
 
 
 

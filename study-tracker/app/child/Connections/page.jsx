@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Sidebar from '@/components/Sidebar'
+import Sidebar from '@/components/shared/Sidebar'
 import ConnCard from '@/components/connections/ConnCard'
 import AddCard from '@/components/connections/AddCard'
 import SectionHeader from '@/components/connections/SectionHeader'
 import SkeletonCard from '@/components/connections/SkeletonCard'
+import AddGuardianModal from '@/components/connections/AddGuardianmodal'
 import { IconFamily, IconTeacher, IconPlus } from '@/components/connections/icons'
 
 export default function ConnectionsPage() {
@@ -13,25 +14,26 @@ export default function ConnectionsPage() {
   const [teachers, setTeachers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [modalOpen, setModalOpen] = useState(false)
 
-  useEffect(() => {
-    async function fetchConnections() {
-      try {
-        const res = await fetch('/api/connections', {
-          headers: { 'x-user-id': 'CURRENT_USER_ID' },
-        })
-        if (!res.ok) throw new Error('Failed to load connections')
-        const data = await res.json()
-        setParent(data.parent)
-        setTeachers(data.teachers ?? [])
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
+  async function fetchConnections() {
+    try {
+      setLoading(true)
+      const res = await fetch('/api/connections', {
+        headers: { 'x-user-id': 'cccccccc-0000-0000-0000-000000000001' },
+      })
+      if (!res.ok) throw new Error('Failed to load connections')
+      const data = await res.json()
+      setParent(data.parent)
+      setTeachers(data.teachers ?? [])
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
     }
-    fetchConnections()
-  }, [])
+  }
+
+  useEffect(() => { fetchConnections() }, [])
 
   return (
     <main className="w-full px-8 py-6">
@@ -57,7 +59,10 @@ export default function ConnectionsPage() {
         label="Family"
         iconBg="#f0eeff"
         right={
-          <button className="flex items-center gap-1 text-xs font-medium text-[#8B1A4A] px-3 py-1.5 rounded-full hover:bg-pink-50 transition-colors border-none bg-transparent cursor-pointer">
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-1 text-xs font-medium text-[#8B1A4A] px-3 py-1.5 rounded-full hover:bg-pink-50 transition-colors border-none bg-transparent cursor-pointer"
+          >
             <IconPlus /> Add Guardian
           </button>
         }
@@ -67,7 +72,13 @@ export default function ConnectionsPage() {
         ? <ConnCard profile={parent} index={0} />
         : <p className="text-sm text-gray-300 py-3">No guardian linked yet.</p>
       }
-      <AddCard label="Add a family member" sublabel="Link a parent, guardian, or sibling" />
+      {!parent && (
+        <AddCard
+          label="Add a family member"
+          sublabel="Link a parent, guardian, or sibling"
+          onClick={() => setModalOpen(true)}
+        />
+      )}
 
       {/* ── Teachers ── */}
       <SectionHeader
@@ -88,6 +99,12 @@ export default function ConnectionsPage() {
       <p className="mt-12 text-[11px] text-gray-200 tracking-widest text-center">
         PRIVACY PROTECTED · BASIRA QATAR EDUCATION PLATFORM
       </p>
+
+      <AddGuardianModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSuccess={fetchConnections}
+      />
 
     </main>
   )

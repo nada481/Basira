@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { getTasksByStudent } from '@/services/taskService'
-import TaskCard from '@/components/TaskList'
+import TaskCard from '@/components/Tasks/TaskList'
 import {
   BookOpen,
   CheckSquare,
