@@ -4,10 +4,11 @@ import {
   getChildGrade,
   getRecentCompletedTasks,
   getParentTip,
+  linkChildByEmail,
 } from '@/services/parentService'
-import {getTotalStudyTime} from '@/services/timerService'
+import { getTotalStudyTime } from '@/services/timerService'
 
-// GET /api/parent — full dashboard payload for the parent's family overview page
+// GET /api/parent
 export async function GET(req) {
   try {
     const parentId = req.headers.get('x-user-id')
@@ -20,7 +21,6 @@ export async function GET(req) {
       getLinkedChildren(parentId),
     ])
 
-    // Enrich each child with grade, today's time, and recent completed tasks
     const enrichedChildren = await Promise.all(
       children.map(async (child) => {
         const [grade, totalStudyTime, recentTasks] = await Promise.all([
@@ -47,7 +47,7 @@ export async function GET(req) {
   }
 }
 
-// POST /api/parent — link a new child by email
+// POST /api/parent
 export async function POST(req) {
   try {
     const parentId = req.headers.get('x-user-id')
@@ -60,9 +60,7 @@ export async function POST(req) {
       return Response.json({ error: 'email is required' }, { status: 400 })
     }
 
-    const { linkChildByEmail } = await import('@/services/parentService')
     const student = await linkChildByEmail(parentId, email)
-
     return Response.json({ message: 'Student linked successfully', student })
 
   } catch (error) {

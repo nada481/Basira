@@ -72,7 +72,7 @@ export default function ChildCard({ child }) {
 
       {/* View Progress Report */}
       <button
-        onClick={() => router.push(`/parent/report/${child.id}`)}
+        onClick={() => router.push(`/parent/reports/${child.id}`)}
         className="flex items-center justify-center gap-2 bg-[#8B1A4A] hover:bg-[#C4526A] text-white text-xs font-bold py-2.5 px-4 rounded-xl transition-colors"
       >
         View Progress Report →

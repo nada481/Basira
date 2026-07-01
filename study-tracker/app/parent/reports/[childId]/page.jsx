@@ -1,314 +1,212 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { ArrowLeft, Calendar, TrendingUp, Clock, AlertTriangle, CheckCircle } from 'lucide-react'
-import { getTodayReport, getDailyStats, getMonthlyStats, getYearlyStats } from '@/services/reportService'
-import { getStudentName } from '@/services/profileService'
+import { use, useState, useEffect } from 'react'
+import {
+  TrendingUp, Target, MessageSquare, Clock,
+  FileText, ExternalLink, Calculator, Globe,
+  FlaskConical, BookOpen, Microscope, History,
+  Music, Palette, Code, BookMarked, Sparkles,
+} from 'lucide-react'
+import Sidebar from '@/components/shared/Sidebar'
+import NoteModal from '@/components/NoteModal'
 
-const TABS = ['Daily', 'Monthly', 'Yearly']
+const FILTERS = ['All', 'This Week', 'This Month']
 
-const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+const SUBJECT_ICON_MAP = [
+  { keywords: ['math', 'calcul', 'fraction', 'algebra'], icon: Calculator,    bg: 'bg-blue-50',    color: 'text-blue-500' },
+  { keywords: ['arabic', 'language', 'linguist', 'poetry'], icon: Globe,      bg: 'bg-emerald-50', color: 'text-emerald-500' },
+  { keywords: ['chemistry', 'ionic', 'chemical'],           icon: FlaskConical, bg: 'bg-purple-50', color: 'text-purple-500' },
+  { keywords: ['history', 'silk', 'modern'],                icon: History,     bg: 'bg-amber-50',   color: 'text-amber-500' },
+  { keywords: ['biology', 'bio', 'cell'],                   icon: Microscope,  bg: 'bg-green-50',   color: 'text-green-500' },
+  { keywords: ['music'],                                    icon: Music,       bg: 'bg-pink-50',    color: 'text-pink-500' },
+  { keywords: ['art', 'design', 'draw'],                    icon: Palette,     bg: 'bg-rose-50',    color: 'text-rose-500' },
+  { keywords: ['code', 'program', 'computer'],              icon: Code,        bg: 'bg-sky-50',     color: 'text-sky-500' },
+  { keywords: ['english', 'literature', 'reading'],         icon: BookOpen,    bg: 'bg-indigo-50',  color: 'text-indigo-500' },
+]
 
-function formatTime(seconds) {
+function getSubjectStyle(subject) {
+  const key = (subject ?? '').toLowerCase()
+  for (const entry of SUBJECT_ICON_MAP) {
+    if (entry.keywords.some(k => key.includes(k))) return entry
+  }
+  return { icon: BookMarked, bg: 'bg-pink-50', color: 'text-[#8B1A4A]' }
+}
+
+function formatFocus(seconds) {
   const h = Math.floor(seconds / 3600)
   const m = Math.floor((seconds % 3600) / 60)
-  if (h > 0) return `${h}h ${m}m`
-  return `${m}m`
+  if (h > 0) return `${h}h ${m}m Focus Time`
+  return `${m}m Focus Time`
 }
 
-function StatCard({ label, value, icon: Icon, sub, color = 'text-[#8B1A4A]' }) {
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm flex flex-col gap-1">
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-gray-400 font-medium">{label}</p>
-        {Icon && <Icon className="w-4 h-4 text-gray-300" />}
-      </div>
-      <p className={`text-2xl font-bold ${color}`}>{value}</p>
-      {sub && <p className="text-xs text-gray-400">{sub}</p>}
-    </div>
-  )
-}
+export default function ProgressPage({ params }) {
+  const { childId } = use(params)
 
-function BarChart({ data, labelKey, valueKey, color = '#8B1A4A' }) {
-  const max = Math.max(...data.map(d => d[valueKey]), 1)
-  return (
-    <div className="flex items-end gap-1.5 h-24">
-      {data.map((d, i) => (
-        <div key={i} className="flex flex-col items-center gap-1 flex-1">
-          <div
-            className="w-full rounded-t-md transition-all"
-            style={{ height: `${Math.max((d[valueKey] / max) * 80, 2)}px`, backgroundColor: color, opacity: d[valueKey] ? 1 : 0.2 }}
-          />
-          <span className="text-[9px] text-gray-400">{d[labelKey]}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-export default function ReportPage({ params }) {
-  const { studentId } = params
-  const router = useRouter()
-
-  const [tab, setTab]               = useState('Daily')
-  const [studentName, setStudentName] = useState('')
-  const [narrative, setNarrative]   = useState(null)
-  const [generating, setGenerating] = useState(false)
-  const [daily, setDaily]           = useState(null)
-  const [monthly, setMonthly]       = useState(null)
-  const [yearly, setYearly]         = useState(null)
-  const [loading, setLoading]       = useState(true)
-
-  const now   = new Date()
-  const today = now.toISOString().split('T')[0]
+  const [filter, setFilter]       = useState('All')
+  const [documents, setDocuments] = useState([])
+  const [stats, setStats]         = useState(null)
+  const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState(null)
+  const [selectedDoc, setSelectedDoc] = useState(null)
 
   useEffect(() => {
     async function load() {
       try {
-        const [name, report, dailyStats, monthlyStats, yearlyStats] = await Promise.all([
-          getStudentName(studentId),
-          getTodayReport(studentId),
-          getDailyStats(studentId, today),
-          getMonthlyStats(studentId, now.getFullYear(), now.getMonth() + 1),
-          getYearlyStats(studentId, now.getFullYear()),
-        ])
-        setStudentName(name)
-        setNarrative(report?.narrative ?? null)
-        setDaily(dailyStats)
-        setMonthly(monthlyStats)
-        setYearly(yearlyStats)
+        setLoading(true)
+        const filterParam = filter === 'This Week' ? 'week' : filter === 'This Month' ? 'month' : 'all'
+        const res = await fetch(`/api/documents?filter=${filterParam}`, {
+          headers: { 'x-user-id': childId },
+        })
+        if (!res.ok) throw new Error('Failed to load reports')
+        const data = await res.json()
+        setDocuments(data.documents ?? [])
+        setStats(data.stats ?? null)
       } catch (err) {
-        console.error(err)
+        setError(err.message)
       } finally {
         setLoading(false)
       }
     }
     load()
-  }, [studentId])
-
-  async function generateReport() {
-    setGenerating(true)
-    try {
-      const res  = await fetch('/api/reports/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentId }),
-      })
-      const data = await res.json()
-      setNarrative(data.report?.narrative ?? null)
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setGenerating(false)
-    }
-  }
-
-  // Monthly chart data
-  const monthlyChartData = monthly
-    ? Object.entries(monthly.byDay).slice(-14).map(([day, secs]) => ({
-        label: day.slice(8), // day number
-        value: Math.round(secs / 60), // minutes
-      }))
-    : []
-
-  // Yearly chart data
-  const yearlyChartData = yearly
-    ? yearly.byMonth.map((m, i) => ({
-        label: MONTH_NAMES[i],
-        value: Math.round(m.seconds / 3600), // hours
-      }))
-    : []
+  }, [childId, filter])
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main className="w-full px-8 py-6">
 
-      {/* Header */}
-      <header className="bg-white border-b border-gray-100 px-6 py-4 flex items-center gap-4">
-        <button onClick={() => router.back()} className="p-2 hover:bg-gray-100 rounded-xl text-gray-500 transition-colors">
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div>
-          <h1 className="text-lg font-bold text-[#8B1A4A]">{studentName || 'Student'} — Progress Report</h1>
-          <p className="text-xs text-gray-400">{today}</p>
-        </div>
-      </header>
+      <div className="flex items-center gap-3 mb-1">
+        <Sidebar />
+        <h1 className="text-3xl font-bold text-[#8B1A4A]">Parent Reports</h1>
+      </div>
+      <p className="text-sm text-gray-500 mb-6">
+        Review your child's academic progress, focus statistics, and teacher feedback.
+      </p>
 
-      <div className="max-w-3xl mx-auto px-4 py-6 flex flex-col gap-6">
+      {/* Filter tabs */}
+      <div className="flex items-center gap-6 border-b border-gray-100 mb-6">
+        {FILTERS.map(f => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`pb-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              filter === f
+                ? 'border-[#8B1A4A] text-[#8B1A4A]'
+                : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            {f}
+          </button>
+        ))}
+      </div>
 
-        {/* ── AI Narrative note ──────────────────────────────────────────────── */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-gray-800">Today's Session Note</h2>
-            <button
-              onClick={generateReport}
-              disabled={generating}
-              className="text-xs font-bold bg-[#8B1A4A] hover:bg-[#C4526A] disabled:opacity-50 text-white px-4 py-1.5 rounded-xl transition-colors"
-            >
-              {generating ? 'Generating...' : narrative ? 'Regenerate' : 'Generate Report'}
-            </button>
-          </div>
+      {error && (
+        <div className="mb-4 px-4 py-3 rounded-lg bg-pink-50 text-[#880e4f] text-sm">{error}</div>
+      )}
 
-          {narrative ? (
-            <p className="text-sm text-gray-700 leading-relaxed bg-pink-50 border border-pink-100 rounded-xl p-4">
-              {narrative}
-            </p>
-          ) : (
-            <p className="text-sm text-gray-400 italic">
-              No report yet for today. Click "Generate Report" at the end of the day.
-            </p>
-          )}
-        </div>
-
-        {/* ── Tab switcher ──────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-1 bg-white border border-gray-100 rounded-2xl p-1 shadow-sm self-start">
-          {TABS.map(t => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`text-sm font-semibold px-5 py-2 rounded-xl transition-colors ${
-                tab === t ? 'bg-[#8B1A4A] text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-
+      {/* Document list */}
+      <div className="flex flex-col gap-3 mb-10">
         {loading ? (
-          <p className="text-sm text-gray-400 text-center py-10">Loading stats...</p>
+          Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center gap-4 animate-pulse">
+              <div className="w-10 h-10 rounded-xl bg-gray-100 flex-shrink-0" />
+              <div className="flex-1">
+                <div className="h-3 bg-gray-100 rounded w-48 mb-2" />
+                <div className="h-2 bg-gray-100 rounded w-32" />
+              </div>
+            </div>
+          ))
+        ) : documents.length === 0 ? (
+          <p className="text-sm text-gray-400 py-6 text-center">No reports found.</p>
         ) : (
-          <>
-            {/* ── Daily ───────────────────────────────────────────────────────── */}
-            {tab === 'Daily' && daily && (
-              <div className="flex flex-col gap-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <StatCard label="Total Focus Time"    value={formatTime(daily.totalFocusSeconds)} icon={Clock} />
-                  <StatCard label="Total Distracted"    value={formatTime(daily.totalDistracted)}   icon={AlertTriangle} color="text-orange-500" />
-                  <StatCard label="Sessions Completed"  value={daily.sessions.length}               icon={CheckCircle} color="text-green-600" />
-                  <StatCard label="Stuck Pages"         value={daily.stuckPages.length}             icon={Calendar} color="text-red-500" />
+          documents.map(doc => {
+            const taskName = doc.task?.taskName ?? 'Untitled Task'
+            const subject  = doc.task?.subject  ?? ''
+            const reviewed = doc.ai_verified === true
+            const label    = `${subject ? subject + ' – ' : ''}${taskName}`
+            const { icon: SubjectIcon, bg, color } = getSubjectStyle(subject)
+
+            return (
+              <div
+                key={doc.id}
+                className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center gap-4 hover:border-gray-200 hover:shadow-sm transition-all"
+              >
+                <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center flex-shrink-0`}>
+                  <SubjectIcon className={`w-5 h-5 ${color}`} />
                 </div>
 
-                {/* Distraction breakdown */}
-                {Object.keys(daily.distractionBreakdown).length > 0 && (
-                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                    <h3 className="text-sm font-bold text-gray-800 mb-3">Distraction Breakdown</h3>
-                    <div className="flex flex-col gap-2">
-                      {Object.entries(daily.distractionBreakdown).map(([reason, secs]) => {
-                        const label = {
-                          phone_detected:  'Phone Detected',
-                          not_writing:     'Not Facing Device',
-                          talking:         'Talking',
-                          off_task_screen: 'Off-Task Screen',
-                        }[reason] ?? reason
-                        const pct = daily.totalDistracted > 0
-                          ? Math.round((secs / daily.totalDistracted) * 100) : 0
-                        return (
-                          <div key={reason} className="flex items-center gap-3">
-                            <span className="text-xs text-gray-500 w-36">{label}</span>
-                            <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                              <div className="h-full bg-[#8B1A4A] rounded-full" style={{ width: `${pct}%` }} />
-                            </div>
-                            <span className="text-xs font-semibold text-gray-600 w-10 text-right">{formatTime(secs)}</span>
-                          </div>
-                        )
-                      })}
-                    </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-800 truncate">{label}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Clock className="w-3 h-3 text-gray-400" />
+                    <span className="text-xs text-gray-400">{formatFocus(doc.focusSeconds ?? 0)}</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      reviewed ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'
+                    }`}>
+                      {reviewed ? 'REVIEWED' : 'WAITING REVIEW'}
+                    </span>
                   </div>
-                )}
-
-                {/* Tasks */}
-                {daily.tasks.length > 0 && (
-                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                    <h3 className="text-sm font-bold text-gray-800 mb-3">Tasks Today</h3>
-                    <div className="flex flex-col gap-2">
-                      {daily.tasks.map((t, i) => (
-                        <div key={i} className="flex items-center justify-between text-sm">
-                          <span className="text-gray-700">{t.tasks?.title ?? 'Unknown'}</span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-400 text-xs">{formatTime(t.time_spent)}</span>
-                            {t.overtime_triggered && (
-                              <span className="text-[10px] font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full">OVERTIME</span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Stuck pages */}
-                {daily.stuckPages.length > 0 && (
-                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                    <h3 className="text-sm font-bold text-gray-800 mb-3">Stuck Pages</h3>
-                    <div className="flex flex-col gap-3">
-                      {daily.stuckPages.map((p, i) => (
-                        <div key={i} className="bg-red-50 border border-red-100 rounded-xl p-3">
-                          <p className="text-xs font-bold text-red-600 mb-0.5">Page {p.page_number} — {formatTime(p.time_spent_seconds)}</p>
-                          {p.ai_diagnosis && <p className="text-xs text-gray-600">{p.ai_diagnosis}</p>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── Monthly ─────────────────────────────────────────────────────── */}
-            {tab === 'Monthly' && monthly && (
-              <div className="flex flex-col gap-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <StatCard label="Total Focus Time"   value={formatTime(monthly.totalSeconds)}    icon={Clock} />
-                  <StatCard label="Avg Focus Score"    value={`${monthly.focusScore}%`}            icon={TrendingUp} color="text-green-600" />
-                  <StatCard label="Total Distracted"   value={formatTime(monthly.totalDistracted)} icon={AlertTriangle} color="text-orange-500" />
                 </div>
 
-                {/* Daily chart */}
-                {monthlyChartData.length > 0 && (
-                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                    <h3 className="text-sm font-bold text-gray-800 mb-4">Focus Time (last 14 days, mins)</h3>
-                    <BarChart data={monthlyChartData} labelKey="label" valueKey="value" />
-                  </div>
-                )}
-
-                {/* Subject breakdown */}
-                {Object.keys(monthly.subjectTime).length > 0 && (
-                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                    <h3 className="text-sm font-bold text-gray-800 mb-3">Time by Subject</h3>
-                    <div className="flex flex-col gap-2">
-                      {Object.entries(monthly.subjectTime)
-                        .sort(([,a],[,b]) => b - a)
-                        .map(([subject, secs]) => (
-                          <div key={subject} className="flex items-center justify-between text-sm">
-                            <span className="text-gray-600">{subject}</span>
-                            <span className="font-semibold text-[#8B1A4A]">{formatTime(secs)}</span>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── Yearly ──────────────────────────────────────────────────────── */}
-            {tab === 'Yearly' && yearly && (
-              <div className="flex flex-col gap-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <StatCard label="Total Study Hours"  value={`${Math.round(yearly.totalSeconds / 3600)}h`} icon={Clock} />
-                  <StatCard label="Completion Rate"    value={`${yearly.completionRate}%`}                  icon={CheckCircle} color="text-green-600" />
-                  <StatCard label="Overtime Sessions"  value={yearly.totalOvertimes}                        icon={AlertTriangle} color="text-orange-500" />
-                </div>
-
-                {/* Monthly chart */}
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                  <h3 className="text-sm font-bold text-gray-800 mb-4">Study Hours by Month</h3>
-                  <BarChart data={yearlyChartData} labelKey="label" valueKey="value" />
+                <div className="flex items-center gap-4 flex-shrink-0">
+                  {doc.ai_feedback && (
+                    <button
+                      onClick={() => setSelectedDoc(doc)}
+                      className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-[#8B1A4A] transition-colors"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      View Note
+                    </button>
+                  )}
+                  {doc.file_url && (
+                    <a
+                      href={doc.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-[#8B1A4A] transition-colors"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Submission Document
+                    </a>
+                  )}
                 </div>
               </div>
-            )}
-          </>
+            )
+          })
         )}
       </div>
+
+      {/* Bottom stat cards */}
+      {stats && (
+        <div className="grid grid-cols-3 gap-6">
+          <div className="flex flex-col gap-2">
+            <TrendingUp className="w-5 h-5 text-[#8B1A4A]" />
+            <p className="text-sm font-bold text-gray-800">Weekly Growth</p>
+            <p className="text-xs text-gray-400">
+              {stats.newThisWeek} new submission{stats.newThisWeek !== 1 ? 's' : ''} this week.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 items-center text-center">
+            <Target className="w-5 h-5 text-[#8B1A4A]" />
+            <p className="text-sm font-bold text-gray-800">Focus Metrics</p>
+            <p className="text-xs text-gray-400">
+              {stats.reviewed} of {stats.total} submissions reviewed.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2">
+            <MessageSquare className="w-5 h-5 text-[#8B1A4A]" />
+            <p className="text-sm font-bold text-gray-800">Teacher Feedback</p>
+            <p className="text-xs text-gray-400">
+              {stats.withFeedback} detailed note{stats.withFeedback !== 1 ? 's' : ''} added.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <NoteModal
+        open={!!selectedDoc}
+        onClose={() => setSelectedDoc(null)}
+        doc={selectedDoc}
+      />
+
     </main>
   )
 }

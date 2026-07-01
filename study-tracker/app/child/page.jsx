@@ -1,10 +1,9 @@
 'use client'
-import {useRouter} from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
-import { BookOpen, CheckSquare, TrendingUp, Users, X, Menu, Video, Monitor, Play, Pause, Settings, Wifi } from 'lucide-react'
+import { BookOpen, CheckSquare, TrendingUp, Users, X, Menu, Video, Monitor, Play, Pause, Settings } from 'lucide-react'
 import FocusCamera from '@/components/session/FocusCamera'
-
-
+import CompleteSessionModal from '@/components/session/CompleteSessionModal'
 
 const SESSION_GOALS = [
   { id: 1, label: 'Complete Chapter 4 reading' },
@@ -12,30 +11,28 @@ const SESSION_GOALS = [
   { id: 3, label: 'Review vocabulary list' },
 ]
 
-
 const NAV_ITEMS = [
   { label: 'Study Area', icon: BookOpen,    href: '/child' },
   { label: 'Tasks',      icon: CheckSquare, href: '/child/Task' },
   { label: 'Growth',     icon: TrendingUp,  href: '/child/Growth' },
-  { label: 'Connection',     icon: Users,       href: '/child/Connections' },
+  { label: 'Connection', icon: Users,       href: '/child/Connections' },
 ]
 
-
 export default function ChildStudyPage() {
-  const [goals, setGoals]               = useState(SESSION_GOALS.map(g => ({ ...g, done: false })))
-  const [sessionActive, setSessionActive] = useState(false)
-  const [timeLeft, setTimeLeft]         = useState(25 * 60)
-  const [isPaused, setIsPaused]         = useState(false)
-  const [menuOpen, setMenuOpen]         = useState(false)
-  const [activeNav, setActiveNav]       = useState('Study Area')
-  const router = useRouter()
+  const [goals, setGoals]                   = useState(SESSION_GOALS.map(g => ({ ...g, done: false })))
+  const [sessionActive, setSessionActive]   = useState(false)
+  const [timeLeft, setTimeLeft]             = useState(25 * 60)
+  const [isPaused, setIsPaused]             = useState(false)
+  const [menuOpen, setMenuOpen]             = useState(false)
+  const [activeNav, setActiveNav]           = useState('Study Area')
+  const [isSharing, setIsSharing]           = useState(false)
+  const [shareError, setShareError]         = useState(null)
+  const [showCompleteModal, setShowCompleteModal] = useState(false)
+  const [currentSessionId, setCurrentSessionId]   = useState(null)
 
-  // Screen share state
-  const [isSharing, setIsSharing]       = useState(false)
-  const [shareError, setShareError]     = useState(null)
-
-  const timerRef      = useRef(null)
-  const videoRef      = useRef(null)
+  const router         = useRouter()
+  const timerRef       = useRef(null)
+  const videoRef       = useRef(null)
   const screenVideoRef = useRef(null)
   const screenStreamRef = useRef(null)
 
@@ -53,18 +50,40 @@ export default function ChildStudyPage() {
     return () => clearInterval(timerRef.current)
   }, [sessionActive, isPaused])
 
-  const startSession    = () => { setTimeLeft(25 * 60); setSessionActive(true); setIsPaused(false) }
+  const startSession = () => {
+    setTimeLeft(25 * 60)
+    setSessionActive(true)
+    setIsPaused(false)
+    // TODO: replace with real timer ID from DB once auth is set up
+    setCurrentSessionId('eeeeeeee-0000-0000-0000-000000000001')
+  }
+
+  // Opens the upload modal instead of immediately ending the session
   const completeSession = () => {
     clearInterval(timerRef.current)
+    setIsPaused(true)
+    setShowCompleteModal(true)
+  }
+
+  // Called when modal is confirmed (after upload + review)
+  const onSessionConfirmed = () => {
+    setShowCompleteModal(false)
     setSessionActive(false)
     setTimeLeft(25 * 60)
     stopScreenShare()
   }
-  const toggleGoal  = (id) => setGoals(prev => prev.map(g => g.id === id ? { ...g, done: !g.done } : g))
-  const formatTime  = (s)  => `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`
-  const remaining   = goals.filter(g => !g.done).length
 
-  //  Screen share part
+  // Called when modal is skipped (no upload)
+  const onSessionSkipped = () => {
+    setShowCompleteModal(false)
+    setSessionActive(false)
+    setTimeLeft(25 * 60)
+    stopScreenShare()
+  }
+
+  const toggleGoal = (id) => setGoals(prev => prev.map(g => g.id === id ? { ...g, done: !g.done } : g))
+  const formatTime = (s)  => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+  const remaining  = goals.filter(g => !g.done).length
 
   async function startScreenShare() {
     setShareError(null)
@@ -73,15 +92,9 @@ export default function ChildStudyPage() {
       screenStreamRef.current = stream
       if (screenVideoRef.current) screenVideoRef.current.srcObject = stream
       setIsSharing(true)
-
-      // auto-stop when user ends share from browser UI
-      stream.getVideoTracks()[0].addEventListener('ended', () => {
-        stopScreenShare()
-      })
+      stream.getVideoTracks()[0].addEventListener('ended', stopScreenShare)
     } catch (err) {
-      if (err.name !== 'NotAllowedError') {
-        setShareError('Screen sharing failed. Please try again.')
-      }
+      if (err.name !== 'NotAllowedError') setShareError('Screen sharing failed. Please try again.')
     }
   }
 
@@ -97,46 +110,29 @@ export default function ChildStudyPage() {
   }
 
   return (
-    <main className="w-full px-8 py-6">
+    <main className="min-h-screen bg-white">
 
-      {/*  Slide-in sidebar menu */}
+      {/* Overlay */}
       {menuOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
-          onClick={() => setMenuOpen(false)}
-        />
+        <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={() => setMenuOpen(false)} />
       )}
 
-      <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-white z-50 shadow-2xl flex flex-col transition-transform duration-300 ${
-          menuOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        {/* Header */}
+      {/* Sidebar */}
+      <aside className={`fixed top-0 left-0 h-full w-64 bg-white z-50 shadow-2xl flex flex-col transition-transform duration-300 ${menuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex items-center justify-between px-5 py-5 border-b border-gray-100">
           <span className="text-lg font-bold text-[#8B1A4A]">Basira</span>
-          <button
-            onClick={() => setMenuOpen(false)}
-            className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500"
-          >
+          <button onClick={() => setMenuOpen(false)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Nav links */}
         <nav className="flex flex-col gap-1 px-3 py-4 flex-1">
           {NAV_ITEMS.map(item => (
             <button
               key={item.label}
-              onClick={() => { 
-                router.push(item.href)
-                setActiveNav(item.label)
-                setMenuOpen(false)
-               }}
+              onClick={() => { router.push(item.href); setActiveNav(item.label); setMenuOpen(false) }}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left ${
-                activeNav === item.label
-                  ? 'bg-pink-50 text-[#8B1A4A]'
-                  : 'text-gray-600 hover:bg-gray-50'
+                activeNav === item.label ? 'bg-pink-50 text-[#8B1A4A]' : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
               <item.icon className="w-4 h-4 shrink-0" />
@@ -145,11 +141,9 @@ export default function ChildStudyPage() {
           ))}
         </nav>
 
-        {/* Family Connect card */}
         <div className="mx-3 mb-5 rounded-2xl bg-pink-50 border border-pink-100 p-4">
           <p className="text-xs font-semibold text-[#8B1A4A] uppercase tracking-wider mb-1">Family Connect</p>
           <p className="text-xs text-gray-500 mb-3">Your parent can watch your session live.</p>
-
           <div className="flex items-center gap-2 mb-3">
             <div className="w-8 h-8 rounded-full bg-[#8B1A4A] text-white flex items-center justify-center text-xs font-bold">M</div>
             <div>
@@ -159,12 +153,8 @@ export default function ChildStudyPage() {
               </span>
             </div>
           </div>
-
           <button
-            onClick={() => {
-              setMenuOpen(false)
-              if (!isSharing) startScreenShare()
-            }}
+            onClick={() => { setMenuOpen(false); if (!isSharing) startScreenShare() }}
             className="w-full flex items-center justify-center gap-2 bg-[#8B1A4A] hover:bg-[#C4526A] text-white text-xs font-bold py-2 rounded-xl transition-colors"
           >
             <Monitor className="w-3.5 h-3.5" />
@@ -173,18 +163,12 @@ export default function ChildStudyPage() {
         </div>
       </aside>
 
-      {/*  Header  */}
+      {/* Header */}
       <header className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
         <div className="flex items-center gap-3">
-          {/* Hamburger */}
-          <button
-            onClick={() => setMenuOpen(true)}
-            className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
-            title="Menu"
-          >
+          <button onClick={() => setMenuOpen(true)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors">
             <Menu className="w-5 h-5" />
           </button>
-
           <h1 className="text-xl font-semibold text-[#8B1A4A]">Study Session</h1>
           {sessionActive && (
             <span className="flex items-center gap-1 text-xs font-medium text-[#8B1A4A] bg-pink-100 px-2 py-1 rounded-full">
@@ -204,128 +188,64 @@ export default function ChildStudyPage() {
 
       <div className="px-8 py-6 flex flex-col gap-5">
 
-        {/*  Camera / Screen preview  */}
+        {/* Camera / Screen preview */}
         <div className="w-full rounded-2xl overflow-hidden bg-gray-100 relative" style={{ aspectRatio: '16/9' }}>
-          {/* Screen share preview — shown when sharing */}
-          {isSharing && (
-            <video
-              ref={screenVideoRef}
-              autoPlay
-              muted
-              className="w-full h-full object-contain bg-black"
-            />
-          )}
-
-          {/* Webcam — shown when session active and not sharing */}
-          {sessionActive && !isSharing && (
-            <video
-              ref={videoRef}
-              autoPlay
-              muted
-              className="w-full h-full object-cover"
-            />
-          )}
-
-          {/* Placeholder — shown when nothing active */}
+          {isSharing && <video ref={screenVideoRef} autoPlay muted className="w-full h-full object-contain bg-black" />}
+          {sessionActive && !isSharing && <video ref={videoRef} autoPlay muted className="w-full h-full object-cover" />}
           {!sessionActive && !isSharing && (
             <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-gray-400">
               <span className="text-4xl">📷</span>
               <span className="text-sm">Camera will start when session begins</span>
             </div>
           )}
-
-          {/* Screen share badge */}
           {isSharing && (
             <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/60 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              Sharing Screen
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /> Sharing Screen
             </div>
           )}
-
-          {/* PiP webcam when screen sharing */}
           {isSharing && sessionActive && (
-            <video
-              ref={videoRef}
-              autoPlay
-              muted
-              className="absolute bottom-3 right-3 w-28 rounded-xl border-2 border-white shadow-lg object-cover"
-              style={{ aspectRatio: '4/3' }}
-            />
+            <video ref={videoRef} autoPlay muted className="absolute bottom-3 right-3 w-28 rounded-xl border-2 border-white shadow-lg object-cover" style={{ aspectRatio: '4/3' }} />
           )}
         </div>
 
-        {/* Screen share error */}
-        {shareError && (
-          <p className="text-xs text-red-500 text-center -mt-3">{shareError}</p>
-        )}
+        {shareError && <p className="text-xs text-red-500 text-center -mt-3">{shareError}</p>}
 
-        {/* ── Session Goals ─────────────────────────────────────────────────── */}
+        {/* Session Goals */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-gray-800">Session Goals</h2>
             <span className="text-sm text-gray-400">{remaining} Tasks Remaining</span>
           </div>
-
           <div className="flex flex-col gap-3">
             {goals.map(goal => (
-              <label
-                key={goal.id}
-                className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
-              >
-                <input
-                  type="checkbox"
-                  checked={goal.done}
-                  onChange={() => toggleGoal(goal.id)}
-                  className="w-4 h-4 accent-[#8B1A4A] cursor-pointer"
-                />
-                <span className={`text-sm ${goal.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-                  {goal.label}
-                </span>
+              <label key={goal.id} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors">
+                <input type="checkbox" checked={goal.done} onChange={() => toggleGoal(goal.id)} className="w-4 h-4 accent-[#8B1A4A] cursor-pointer" />
+                <span className={`text-sm ${goal.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>{goal.label}</span>
               </label>
             ))}
           </div>
         </div>
 
-        {/*  Timer controls */}
+        {/* Timer controls */}
         <div className="bg-white border border-gray-200 rounded-2xl px-5 py-4 shadow-sm flex items-center justify-between gap-3">
-
           <div className="flex flex-col leading-tight">
-            <span className="timer-mono text-3xl font-bold text-[#8B1A4A]">
-              {formatTime(timeLeft)}
-            </span>
-            <span className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">
-              Stay Focused
-            </span>
+            <span className="timer-mono text-3xl font-bold text-[#8B1A4A]">{formatTime(timeLeft)}</span>
+            <span className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Stay Focused</span>
           </div>
 
           <div className="flex items-center gap-2 text-gray-400">
-            {/* Camera toggle */}
-            <button
-              className={`p-2 rounded-lg transition-colors ${sessionActive ? 'hover:bg-gray-100 text-gray-500' : 'opacity-30 cursor-not-allowed'}`}
-              title="Camera"
-              disabled={!sessionActive}
-            >
+            <button disabled={!sessionActive} className={`p-2 rounded-lg transition-colors ${sessionActive ? 'hover:bg-gray-100 text-gray-500' : 'opacity-30 cursor-not-allowed'}`}>
               <Video className="w-5 h-5" />
             </button>
-
-            {/* Screen share button  */}
             <button
               onClick={toggleScreenShare}
               disabled={!sessionActive}
-              className={`p-2 rounded-lg transition-colors ${
-                isSharing
-                  ? 'bg-red-50 text-red-500 hover:bg-red-100'
-                  : sessionActive
-                    ? 'hover:bg-gray-100 text-gray-500'
-                    : 'opacity-30 cursor-not-allowed'
-              }`}
-              title={isSharing ? 'Stop sharing screen' : 'Share screen'}
+              className={`p-2 rounded-lg transition-colors ${isSharing ? 'bg-red-50 text-red-500 hover:bg-red-100' : sessionActive ? 'hover:bg-gray-100 text-gray-500' : 'opacity-30 cursor-not-allowed'}`}
             >
               <Monitor className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Play / Pause */}
           <button
             onClick={() => setIsPaused(p => !p)}
             disabled={!sessionActive}
@@ -334,7 +254,7 @@ export default function ChildStudyPage() {
             {isPaused ? <Play className="w-4 h-4 ml-0.5" /> : <Pause className="w-4 h-4" />}
           </button>
 
-          {/* Complete */}
+          {/* Complete — now opens upload modal */}
           <button
             onClick={completeSession}
             disabled={!sessionActive}
@@ -348,6 +268,14 @@ export default function ChildStudyPage() {
       </div>
 
       {sessionActive && <FocusCamera videoRef={videoRef} screenVideoRef={screenVideoRef} />}
+
+      {/* Complete Session Modal — upload + Gemini review + report */}
+      <CompleteSessionModal
+        open={showCompleteModal}
+        sessionId={currentSessionId}
+        onClose={onSessionSkipped}
+        onConfirm={onSessionConfirmed}
+      />
 
     </main>
   )

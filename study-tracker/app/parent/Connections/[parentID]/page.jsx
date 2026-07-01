@@ -1,64 +1,46 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { use } from 'react'
 import { useRouter } from 'next/navigation'
 import { Menu, X, Home, BarChart2, Users, UserPlus } from 'lucide-react'
 import ChildCard from '@/components/ChildCard'
-import {
-  getLinkedChildren,
-  getChildTodayTime,
-  getChildEffortLevel,
-  linkChildByEmail,
-} from '@/services/parentService'
-
-const NAV_ITEMS = [
-  { label: 'Home',     icon: Home },
-  { label: 'Progress', icon: BarChart2 },
-  { label: 'Connections',   icon: Users , href: '/parent/[parentID]'},
-]
 
 export default function ParentFamilyPage({ params }) {
-  const { parentId } = params
+  const { parentId, childId } = use(params)
+
   const router = useRouter()
 
-  const [menuOpen, setMenuOpen]     = useState(false)
-  const [activeNav, setActiveNav]   = useState('Connections')
-  const [parent, setParent]         = useState(null)
-  const [children, setChildren]     = useState([])
-  const [loading, setLoading]       = useState(true)
-  const [linkEmail, setLinkEmail]   = useState('')
-  const [linking, setLinking]       = useState(false)
-  const [linkError, setLinkError]   = useState(null)
+  const [menuOpen, setMenuOpen]       = useState(false)
+  const [activeNav, setActiveNav]     = useState('Connections')
+  const [parent, setParent]           = useState(null)
+  const [children, setChildren]       = useState([])
+  const [loading, setLoading]         = useState(true)
+  const [linkEmail, setLinkEmail]     = useState('')
+  const [linking, setLinking]         = useState(false)
+  const [linkError, setLinkError]     = useState(null)
   const [linkSuccess, setLinkSuccess] = useState(false)
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [profRes, kids] = await Promise.all([
-          fetch('/api/profile', { headers: { 'x-user-id': parentId } }).then(r => r.json()),
-          getLinkedChildren(parentId),
-        ])
-
-        const enriched = await Promise.all(
-          kids.map(async (child) => {
-            const [todaySeconds, effortLevel] = await Promise.all([
-              getChildTodayTime(child.id),
-              getChildEffortLevel(child.id),
-            ])
-            return { ...child, todaySeconds, effortLevel }
-          })
-        )
-
-        setParent(profRes.profile)
-        setChildren(enriched)
-      } catch (err) {
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
+  const NAV_ITEMS = [
+    { label: 'Home',        icon: Home,  href: `/parent/${parentId}` },
+    { label: 'Connections', icon: Users, href: `/parent/connections/${parentId}` },
+  ]
+  async function loadChildren() {
+    try {
+      const [profRes, conRes] = await Promise.all([
+        fetch('/api/profile', { headers: { 'x-user-id': parentId } }).then(r => r.json()),
+        fetch('/api/parent/connections', { headers: { 'x-user-id': parentId } }).then(r => r.json()),
+      ])
+      setParent(profRes.profile)
+      setChildren(conRes.children ?? [])
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
     }
-    load()
-  }, [parentId])
+  }
+
+  useEffect(() => { loadChildren() }, [parentId])
 
   async function handleLinkStudent() {
     if (!linkEmail.trim()) return
@@ -67,16 +49,18 @@ export default function ParentFamilyPage({ params }) {
     setLinkSuccess(false)
 
     try {
-      const newChild = await linkChildByEmail(parentId, linkEmail.trim())
+      const res = await fetch('/api/parent/connections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-id': parentId },
+        body: JSON.stringify({ email: linkEmail.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to link student')
 
-      const [todaySeconds, effortLevel] = await Promise.all([
-        getChildTodayTime(newChild.id),
-        getChildEffortLevel(newChild.id),
-      ])
-      setChildren(prev => [...prev, { ...newChild, todaySeconds, effortLevel }])
       setLinkEmail('')
       setLinkSuccess(true)
       setTimeout(() => setLinkSuccess(false), 3000)
+      await loadChildren() // refresh list
     } catch (err) {
       setLinkError(err.message)
     } finally {
@@ -115,7 +99,7 @@ export default function ParentFamilyPage({ params }) {
           {NAV_ITEMS.map(item => (
             <button
               key={item.label}
-              onClick={() => { setActiveNav(item.label); setMenuOpen(false) }}
+              onClick={() => { router.push(item.href); setActiveNav(item.label); setMenuOpen(false) }}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left ${
                 activeNav === item.label ? 'bg-[#8B1A4A] text-white' : 'text-gray-600 hover:bg-gray-50'
               }`}
@@ -153,6 +137,7 @@ export default function ParentFamilyPage({ params }) {
               <ChildCard key={child.id} child={child} />
             ))}
 
+            {/* Link New Account card */}
             <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex flex-col gap-4 min-w-[220px] max-w-[260px]">
               <div className="flex flex-col items-center gap-2 text-center">
                 <div className="w-12 h-12 rounded-full bg-pink-50 border border-pink-100 flex items-center justify-center">
@@ -172,7 +157,7 @@ export default function ParentFamilyPage({ params }) {
                 className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#8B1A4A]/20"
               />
 
-              {linkError && <p className="text-xs text-red-500 -mt-2">{linkError}</p>}
+              {linkError   && <p className="text-xs text-red-500 -mt-2">{linkError}</p>}
               {linkSuccess && <p className="text-xs text-green-500 -mt-2">Student linked successfully!</p>}
 
               <button

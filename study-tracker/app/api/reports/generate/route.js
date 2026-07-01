@@ -1,5 +1,6 @@
 import { collectReportData, saveReport } from '@/services/reportService'
-import { getStudentName } from '@/services/profileService'
+import { getStudentName }               from '@/services/profileService'
+import { supabaseAdmin as supabase }    from '@/lib/supabaseAdmin'
 
 function formatMins(seconds) {
   const h = Math.floor(seconds / 3600)
@@ -12,7 +13,6 @@ export async function POST(req) {
   try {
     const { studentId, sessionId } = await req.json()
 
-    // Get student name and all data from the existing services
     const [studentName, data] = await Promise.all([
       getStudentName(studentId),
       collectReportData(studentId, sessionId),
@@ -27,14 +27,25 @@ export async function POST(req) {
       stuckPages,
     } = data
 
-    // Build context to read
+    const today     = new Date().toISOString().split('T')[0]
+    const { data: docs } = await supabase
+      .from('documents')
+      .select('ai_verified, ai_feedback, session_id')
+      .eq('userID', studentId)
+      .gte('created_at', `${today}T00:00:00.000Z`)
+      .not('ai_feedback', 'is', null)
+
+    const documentReviews = (docs ?? []).map(d =>
+      `${d.ai_verified ? '✓' : '⚠'} ${d.ai_feedback}`
+    ).join(' | ') || 'No documents submitted today.'
+
     const completedTasks = tasks
-      .filter(t => t.status === 'complete')
-      .map(t => t.title).join(', ') || 'none'
+      .filter(t => t.completeTask)
+      .map(t => t.taskName).join(', ') || 'none'
 
     const sessionList = timerHistory
       .slice(0, 5)
-      .map(s => `${s.tasks?.title ?? 'Unknown'} (${formatMins(s.total_seconds ?? 0)})`)
+      .map(s => `${s.tasks?.taskName ?? 'Unknown'} (${formatMins(s.total_seconds ?? 0)})`)
       .join(', ') || 'none'
 
     const distractionDetails = Object.entries(distractionBreakdown)
@@ -54,17 +65,19 @@ export async function POST(req) {
 
     const teacherNotified = stuckPages.length > 0 ? 'yes' : 'no'
 
-    // Ask AI to write the narrative
+    // Ask 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 300,
+        max_tokens: 400,
         messages: [{
           role: 'user',
-          content: `Write a short warm professional end-of-day progress note for a student.
-Write in third person, 3-4 sentences, plain paragraph, no bullet points, no markdown.
+          content: `Write a short warm professional end-of-day progress note for a parent about their child.
+Write in third person, 4-5 sentences, plain paragraph, no bullet points, no markdown.
+Include both the study session summary AND the document review findings.
+If any document was flagged as incorrect or incomplete, mention specifically which part of the work needs improvement.
 
 Student: ${studentName}
 Total focus time: ${formatMins(totalStudyTime)}
@@ -73,7 +86,8 @@ Tasks completed: ${completedTasks}
 Total distracted: ${formatMins(totalDistracted)}
 Distraction reasons: ${distractionDetails}
 Stuck pages: ${stuckDetails}
-Teacher notified: ${teacherNotified}`,
+Teacher notified: ${teacherNotified}
+Document reviews: ${documentReviews}`,
         }],
       }),
     })
@@ -81,7 +95,6 @@ Teacher notified: ${teacherNotified}`,
     const aiData    = await response.json()
     const narrative = aiData.content[0].text.trim()
 
-    // 4. Save via reportService
     const report = await saveReport({ studentId, narrative })
 
     return Response.json({ report })
