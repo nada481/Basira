@@ -1,8 +1,6 @@
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin'
 
 // Create a new focus event (called every time AI detects distraction)
-
-
 export async function logFocusEvent({
   sessionId,
   userId,
@@ -16,7 +14,7 @@ export async function logFocusEvent({
     .from('focus_events')
     .insert({
       session_id:           sessionId,
-      user_id:              userId,
+      userID:                userId,
       distraction_reason:   reason,
       distraction_duration: distractionDuration,
       total_distracted:     totalDistracted,
@@ -52,7 +50,7 @@ export async function getTotalDistractionTime(sessionId) {
   return data.reduce((sum, row) => sum + (row.distraction_duration ?? 0), 0)
 }
 
-//Get distraction breakdown by reason for a session 
+//Get distraction breakdown by reason for a session
 export async function getDistractionBreakdown(sessionId) {
   const { data, error } = await supabase
     .from('focus_events')
@@ -70,7 +68,7 @@ export async function getDistractionBreakdown(sessionId) {
   }, {})
 }
 
-//Get all screen notes for a session 
+//Get all screen notes for a session
 export async function getScreenNotes(sessionId) {
   const { data, error } = await supabase
     .from('focus_events')

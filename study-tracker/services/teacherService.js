@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/supabase'
 
 export async function getTeacherProfile(teacherId) {
   const { data, error } = await supabase
@@ -19,48 +19,96 @@ export async function getTeacherClasses(teacherId) {
     .order('name', { ascending: true })
 
   if (error) throw new Error(error.message)
-  return data
+  return data ?? []
 }
 
-export async function getStudentsByTeacher(teacherId) {
-  const { data, error } = await supabase
+// Fix: get class_ids first, then query class_students
+export async function getStudentsByClass(teacherId) {
+  // 1. Get all classes this teacher owns
+  const { data: classes, error: classError } = await supabase
+    .from('classes')
+    .select('id, name')
+    .eq('teacher_id', teacherId)
+
+  if (classError) throw new Error(classError.message)
+  if (!classes?.length) return {}
+
+  // 2. For each class, get enrolled students
+  const grouped = {}
+  await Promise.all(
+    classes.map(async (cls) => {
+      const { data: enrollments, error: enrollError } = await supabase
+        .from('class_students')
+        .select(`
+          student_id,
+          student:profiles!class_students_student_id_fkey (
+            id, full_name, display_name, email, avatar_url
+          )
+        `)
+        .eq('class_id', cls.id)
+
+      if (enrollError) throw new Error(enrollError.message)
+
+      grouped[cls.name] = {
+        classId:  cls.id,
+        students: (enrollments ?? []).map(e => e.student).filter(Boolean),
+      }
+    })
+  )
+
+  return grouped
+}
+
+// All students flat list (for the student management table)
+export async function getAllStudentsByTeacher(teacherId) {
+  const { data: classes, error: classError } = await supabase
+    .from('classes')
+    .select('id, name')
+    .eq('teacher_id', teacherId)
+
+  if (classError) throw new Error(classError.message)
+  if (!classes?.length) return []
+
+  const classIds = classes.map(c => c.id)
+  const classMap = Object.fromEntries(classes.map(c => [c.id, c.name]))
+
+  const { data: enrollments, error: enrollError } = await supabase
     .from('class_students')
     .select(`
       class_id,
-      classes ( id, name ),
-      profiles:student_id (
+      student:profiles!class_students_student_id_fkey (
         id, full_name, display_name, email, avatar_url
       )
     `)
-    .eq('classes.teacher_id', teacherId)
+    .in('class_id', classIds)
 
-  if (error) throw new Error(error.message)
+  if (enrollError) throw new Error(enrollError.message)
 
- 
-  const grouped = {}
-  for (const row of data) {
-    if (!row.classes) continue
-    const className = row.classes.name
-    if (!grouped[className]) grouped[className] = { classId: row.class_id, students: [] }
-    grouped[className].students.push(row.profiles)
+  // Dedupe by student id (student may be in multiple classes)
+  const seen = new Set()
+  const students = []
+  for (const row of enrollments ?? []) {
+    if (!row.student || seen.has(row.student.id)) continue
+    seen.add(row.student.id)
+    students.push({ ...row.student, className: classMap[row.class_id] })
   }
-  return grouped
+
+  return students
 }
 
 export async function getStudentFocusScore(studentId) {
   const { data, error } = await supabase
     .from('focus_events')
-    .select('distraction_duration, detected_at')
+    .select('distraction_duration')
     .eq('user_id', studentId)
-    .gte('detected_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()) 
+    .gte('detected_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
 
   if (error) throw new Error(error.message)
-  if (!data.length) return 100
+  if (!data?.length) return 100
 
-  const totalDistracted = data.reduce((s, r) => s + (r.distraction_duration ?? 0), 0)
-  const totalSessionTime = 25 * 60 * data.length // assume 25min sessions
-  const score = Math.max(0, Math.round(100 - (totalDistracted / totalSessionTime) * 100))
-  return score
+  const totalDistracted   = data.reduce((s, r) => s + (r.distraction_duration ?? 0), 0)
+  const totalSessionTime  = 25 * 60 * data.length
+  return Math.max(0, Math.round(100 - (totalDistracted / totalSessionTime) * 100))
 }
 
 export async function getStudentLastActive(studentId) {
@@ -70,22 +118,21 @@ export async function getStudentLastActive(studentId) {
     .eq('userID', studentId)
     .order('start_time', { ascending: false })
     .limit(1)
-    .single()
+    .maybeSingle()
 
-  if (error && error.code !== 'PGRST116') throw new Error(error.message)
-  if (!data) return null
-
-  // If finish_time is null, student is currently active
+  if (error) throw new Error(error.message)
+  if (!data) return { lastActive: null, isOnline: false }
   return { lastActive: data.finish_time ?? null, isOnline: !data.finish_time }
 }
 
 export async function getClassOverviewStats(teacherId) {
-  const { data: classes } = await supabase
+  const { data: classes, error: classError } = await supabase
     .from('classes')
     .select('id')
     .eq('teacher_id', teacherId)
 
-  if (!classes?.length) return { avgFocusScore: 0, activeNow: 0, assignmentsDue: 0, totalStudents: 0 }
+  if (classError) throw new Error(classError.message)
+  if (!classes?.length) return { totalStudents: 0, activeNow: 0, assignmentsDue: 0 }
 
   const classIds = classes.map(c => c.id)
 
@@ -103,11 +150,22 @@ export async function getClassOverviewStats(teacherId) {
   const { count: assignmentsDue } = await supabase
     .from('tasks')
     .select('*', { count: 'exact', head: true })
-    .neq('status', 'complete')
+    .eq('completeTask', false)
 
   return {
-    totalStudents: totalStudents ?? 0,
-    activeNow:     activeNow     ?? 0,
+    totalStudents:  totalStudents  ?? 0,
+    activeNow:      activeNow      ?? 0,
     assignmentsDue: assignmentsDue ?? 0,
   }
 }
+
+// get class name:
+export async function getClassName(classId) {
+  const { data, error } = await supabase
+    .from('classes')
+    .select('name')
+    .eq('id', classId)
+    .single()
+    
+    if (error) throw new Error(error.message)
+  return data?.name ?? null}

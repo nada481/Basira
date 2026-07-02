@@ -267,7 +267,14 @@ export default function ChildStudyPage() {
 
       </div>
 
-      {sessionActive && <FocusCamera videoRef={videoRef} screenVideoRef={screenVideoRef} />}
+      {sessionActive && (
+        <FocusCamera
+          videoRef={videoRef}
+          screenVideoRef={screenVideoRef}
+          sessionId={currentSessionId}
+          estimatedSecondsPerQuestion={3 * 60}
+        />
+      )}
 
       {/* Complete Session Modal — upload + Gemini review + report */}
       <CompleteSessionModal

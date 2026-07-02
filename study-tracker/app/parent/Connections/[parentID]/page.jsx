@@ -23,7 +23,7 @@ export default function ParentFamilyPage({ params }) {
 
   const NAV_ITEMS = [
     { label: 'Home',        icon: Home,  href: `/parent/${parentId}` },
-    { label: 'Connections', icon: Users, href: `/parent/connections/${parentId}` },
+    { label: 'Connections', icon: Users, href: `/parent/Connections/${parentId}` },
   ]
   async function loadChildren() {
     try {

@@ -60,7 +60,7 @@ export async function POST(req) {
       }).join(', ') || 'none'
 
     const stuckDetails = stuckPages
-      .map(p => `page ${p.page_number} — ${p.ai_diagnosis ?? 'struggled with content'}`)
+      .map(p => `question ${p.page_number} — ${p.ai_diagnosis ?? 'struggled with content'}`)
       .join('; ') || 'none'
 
     const teacherNotified = stuckPages.length > 0 ? 'yes' : 'no'

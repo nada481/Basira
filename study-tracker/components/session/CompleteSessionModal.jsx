@@ -79,8 +79,8 @@ export default function CompleteSessionModal({ open, onClose, onConfirm, session
 
       const documentId = createData.documentId
 
-      // 4. Trigger Gemini review
-      const reviewRes = await fetch('/api/documents', {
+      //Trigger Gemini review
+      const reviewRes = await fetch('/api/documents/review', {   // ← was '/api/documents'
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ documentId }),
@@ -88,16 +88,15 @@ export default function CompleteSessionModal({ open, onClose, onConfirm, session
       const reviewData = await reviewRes.json()
       if (!reviewRes.ok) throw new Error(reviewData.error ?? 'Review failed')
 
-      // 5. Generate end-of-day report
+      //Generate end-of-day report
       await fetch('/api/reports/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ studentId: STUDENT_ID, sessionId }),
       })
 
-      setFeedback(reviewData.feedback)
+      setFeedback(reviewData.document?.ai_feedback ?? null)   // ← was reviewData.feedback
       setStep('done')
-
     } catch (err) {
       console.error(err)
       setError(err.message)

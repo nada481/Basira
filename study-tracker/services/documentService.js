@@ -2,22 +2,20 @@ import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin'
 
 // Get all documents for a student with task info + focus time
 export async function getStudentDocuments(studentId) {
-  
+
   const { data: docs, error: docError } = await supabase
     .from('documents')
-    .select('id, session_id, file_url, ai_verified, ai_feedback, created_at')
+    .select('id, session_id, file_url, ai_verified, ai_feedback, ai_details, created_at')
     .eq('userID', studentId)
     .order('created_at', { ascending: false })
 
   if (docError) throw new Error(docError.message)
   if (!docs?.length) return []
 
-  
   const enriched = await Promise.all(
     docs.map(async (doc) => {
       if (!doc.session_id) return { ...doc, task: null, focusSeconds: 0 }
 
-      // Get the timer row (has task_id + total_seconds)
       const { data: timer, error: timerError } = await supabase
         .from('timer')
         .select('task_id, total_seconds')
@@ -26,7 +24,6 @@ export async function getStudentDocuments(studentId) {
 
       if (timerError || !timer) return { ...doc, task: null, focusSeconds: 0 }
 
-     
       const { data: task, error: taskError } = await supabase
         .from('tasks')
         .select('id, taskName, subject, completeTask')
@@ -50,7 +47,7 @@ export async function getStudentDocuments(studentId) {
 export async function getDocument(documentId) {
   const { data, error } = await supabase
     .from('documents')
-    .select('id, session_id, file_url, ai_verified, ai_feedback, created_at')
+    .select('id, session_id, file_url, ai_verified, ai_feedback, ai_details, created_at')
     .eq('id', documentId)
     .maybeSingle()
 
@@ -65,7 +62,7 @@ export async function getDocumentsThisWeek(studentId) {
 
   const { data, error } = await supabase
     .from('documents')
-    .select('id, session_id, file_url, ai_verified, ai_feedback, created_at')
+    .select('id, session_id, file_url, ai_verified, ai_feedback, ai_details, created_at')
     .eq('userID', studentId)
     .gte('created_at', since.toISOString())
     .order('created_at', { ascending: false })
@@ -81,7 +78,7 @@ export async function getDocumentsThisMonth(studentId) {
 
   const { data, error } = await supabase
     .from('documents')
-    .select('id, session_id, file_url, ai_verified, ai_feedback, created_at')
+    .select('id, session_id, file_url, ai_verified, ai_feedback, ai_details, created_at')
     .eq('userID', studentId)
     .gte('created_at', since.toISOString())
     .order('created_at', { ascending: false })
@@ -110,7 +107,7 @@ export async function getReportStats(studentId) {
   return { total, reviewed, withFeedback, newThisWeek }
 }
 
-// create a document record for a student
+// Create a document record for a student (called on upload, before review)
 export async function createDocument(studentId, sessionId, fileUrl) {
   const { data, error } = await supabase
     .from('documents')
@@ -120,7 +117,28 @@ export async function createDocument(studentId, sessionId, fileUrl) {
       file_url: fileUrl,
       ai_verified: false,
       ai_feedback: null,
+      ai_details: null,
     })
     .select()
-    .maybeSingle() 
-  } 
+    .maybeSingle()
+
+  if (error) throw new Error(error.message)
+  return data
+}
+
+// Save the AI's review results onto a document
+export async function saveDocumentReview(documentId, { verified, feedback, details }) {
+  const { data, error } = await supabase
+    .from('documents')
+    .update({
+      ai_verified: verified,
+      ai_feedback: feedback,
+      ai_details: details,
+    })
+    .eq('id', documentId)
+    .select()
+    .maybeSingle()
+
+  if (error) throw new Error(error.message)
+  return data
+}

@@ -8,9 +8,7 @@ import LineChart         from '@/components/charts/LineChart'
 import SubjectProgress   from '@/components/growth/SubjectProgress'
 import AchievementBadges from '@/components/growth/AchievementBadges'
 import NextGoal          from '@/components/growth/NextGoal'
-import { getTotalStudyTime, getTimerHistory } from '@/services/timerService'
-import { getTasksByStudent }                  from '@/services/taskService'
-import { getMonthlyStats }                    from '@/services/reportService'
+
 
 const NAV_ITEMS = [
   { label: 'Study Area', icon: BookOpen,    href: '/child' },
@@ -37,29 +35,19 @@ export default function GrowthPage() {
   useEffect(() => {
     async function load() {
       try {
-        const [profRes, total, allTasks, monthlyStats, history] = await Promise.all([
+        const [profRes, growthRes] = await Promise.all([
           fetch('/api/profile', { headers: { 'x-user-id': STUDENT_ID } }).then(r => r.json()),
-          getTotalStudyTime(STUDENT_ID),
-          getTasksByStudent(STUDENT_ID),
-          getMonthlyStats(STUDENT_ID, now.getFullYear(), now.getMonth() + 1),
-          getTimerHistory(STUDENT_ID),
+          fetch('/api/growth',  { headers: { 'x-user-id': STUDENT_ID } }).then(r => r.json()),
         ])
 
         setProfile(profRes.profile)
-        setTotal(total)
-        setTasks(allTasks)
-        setMonthly(monthlyStats)
+        setTotal(growthRes.totalSeconds)
+        setTasks(growthRes.tasks)
+        setMonthly(growthRes.monthlyStats)
 
-        // Chart data from byDay
-        if (monthlyStats?.byDay) {
-          setChartData(Object.entries(monthlyStats.byDay).slice(-7).map(([date, secs]) => ({
-            label: date.slice(5),
-            value: Math.round(secs / 60),
-          })))
-        }
-
-        // Streak
-        const days = [...new Set((history ?? []).map(r => r.start_time?.split('T')[0]))].sort().reverse()
+        // streak calc now uses growthRes.timerHistory
+        const days = [...new Set((growthRes.timerHistory ?? []).map(r => r.start_time?.split('T')[0]))]
+          .sort().reverse()
         let streak = 0, expected = new Date()
         for (const day of days) {
           const diff = Math.round((expected - new Date(day)) / 86400000)
@@ -67,6 +55,12 @@ export default function GrowthPage() {
         }
         setStreak(streak)
 
+        if (growthRes.monthlyStats?.byDay) {
+          setChartData(Object.entries(growthRes.monthlyStats.byDay).slice(-7).map(([date, secs]) => ({
+            label: date.slice(5),
+            value: Math.round(secs / 60),
+          })))
+        }
       } catch (err) {
         console.error(err)
       } finally {

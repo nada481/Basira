@@ -1,6 +1,6 @@
 // create the report from the ai, get report based onn the session info time, etc, get weekly report, monthly report, yearly report maybe in
 // a clander or sth ?
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin'
 import { getTasksByStudent } from '@/services/taskService'
 import { getTotalDistractionTime, getDistractionBreakdown, getScreenNotes } from '@/services/focusService'
 import { getStuckPages, getPageProgress } from '@/services/pageTrackingService'
@@ -71,8 +71,8 @@ export async function collectReportData(studentId, sessionId) {
     getTotalDistractionTime(sessionId),
     getDistractionBreakdown(sessionId),
     getScreenNotes(sessionId),
-    getStuckPages({ userId: studentId }),
-    getPageProgress({ userId: studentId }),
+    getStuckPages({ userId: studentId, session_id: sessionId }),
+    getPageProgress({ userId: studentId, session_id: sessionId }),
   ])
 
   return {
