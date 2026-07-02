@@ -1,4 +1,4 @@
-import { supabaseAdmin as supabase } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin'
 
 // Get all documents for a student with task info + focus time
 export async function getStudentDocuments(studentId) {

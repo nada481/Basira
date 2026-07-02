@@ -1,4 +1,4 @@
-import { supabaseAdmin as supabase } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin'
 
 function parseQuestionNumber(questionNumber) {
   if (typeof questionNumber === 'number') return questionNumber

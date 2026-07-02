@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { X, Upload, FileText, Image, File, CheckCircle, Loader2 } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { getSupabase } from '@/lib/supabase'
 
 const STUDENT_ID  = 'cccccccc-0000-0000-0000-000000000001'
 const BUCKET_NAME = 'documents'
@@ -52,6 +52,9 @@ export default function CompleteSessionModal({ open, onClose, onConfirm, session
     setError(null)
 
     try {
+      const supabase = getSupabase()
+      if (!supabase) throw new Error('App is missing Supabase configuration')
+
       // 1. Upload file to Supabase Storage
       const ext      = file.name.split('.').pop()
       const path     = `${STUDENT_ID}/${Date.now()}.${ext}`

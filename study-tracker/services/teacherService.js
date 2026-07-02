@@ -1,13 +1,14 @@
-import { supabaseAdmin as supabase } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin'
 
 export async function getTeacherProfile(teacherId) {
   const { data, error } = await supabase
     .from('profiles')
     .select('id, full_name, display_name, avatar_url, role_id')
     .eq('id', teacherId)
-    .single()
+    .maybeSingle()
 
   if (error) throw new Error(error.message)
+  if (!data) throw new Error('Teacher profile not found')
   return data
 }
 
@@ -159,13 +160,94 @@ export async function getClassOverviewStats(teacherId) {
   }
 }
 
-// get class name:
 export async function getClassName(classId) {
   const { data, error } = await supabase
     .from('classes')
     .select('name')
     .eq('id', classId)
     .single()
-    
-    if (error) throw new Error(error.message)
-  return data?.name ?? null}
+
+  if (error) throw new Error(error.message)
+  return data?.name ?? null
+}
+
+export async function verifyTeacherOwnsClass(teacherId, classId) {
+  const { data, error } = await supabase
+    .from('classes')
+    .select('id')
+    .eq('id', classId)
+    .eq('teacher_id', teacherId)
+    .maybeSingle()
+
+  if (error) throw new Error(error.message)
+  if (!data) throw new Error('Class not found or unauthorized')
+  return data
+}
+
+export async function addStudentToClass({ teacherId, classId, email }) {
+  await verifyTeacherOwnsClass(teacherId, classId)
+
+  const { data: student, error: studentError } = await supabase
+    .from('profiles')
+    .select('id, full_name, display_name, email, avatar_url')
+    .eq('email', email.trim())
+    .maybeSingle()
+
+  if (studentError) throw new Error(studentError.message)
+  if (!student) throw new Error('No student found with that email')
+
+  const { error: enrollError } = await supabase
+    .from('class_students')
+    .insert({ class_id: classId, student_id: student.id })
+
+  if (enrollError) throw new Error(enrollError.message)
+  return student
+}
+
+export async function createTasksForClass({
+  teacherId,
+  classId,
+  taskName,
+  subject,
+  description,
+  estimatedMinutes,
+  dueDate,
+  fileUrl,
+}) {
+  await verifyTeacherOwnsClass(teacherId, classId)
+
+  const { data: enrollments, error: enrollError } = await supabase
+    .from('class_students')
+    .select('student_id')
+    .eq('class_id', classId)
+
+  if (enrollError) throw new Error(enrollError.message)
+  if (!enrollments?.length) throw new Error('No students enrolled in this class')
+
+  const note = [description, fileUrl ? `Attachment: ${fileUrl}` : null]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const tasks = await Promise.all(
+    enrollments.map(async ({ student_id }) => {
+      const { data, error } = await supabase
+        .from('tasks')
+        .insert({
+          userID: student_id,
+          taskName,
+          subject: subject ?? null,
+          note: note || null,
+          class_id: classId,
+          estimated_minutes: estimatedMinutes ?? null,
+          due_date: dueDate ?? null,
+        })
+        .select()
+        .single()
+
+      if (error) throw new Error(error.message)
+      return data
+    })
+  )
+
+  return tasks
+}

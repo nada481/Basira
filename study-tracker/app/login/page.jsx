@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { getSupabase } from '@/lib/supabase'
 
 const ROLE_TO_PATH = {
   teacher: '/teacher',
@@ -23,6 +23,9 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
+      const supabase = getSupabase()
+      if (!supabase) throw new Error('App is missing Supabase configuration')
+
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
       if (signInError) throw new Error(signInError.message)
 

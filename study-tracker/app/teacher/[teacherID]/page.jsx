@@ -1,7 +1,7 @@
 'use client'
 
 import { use, useState, useEffect } from 'react'
-import { Bell, Search, Users, UserPlus, ClipboardPlus } from 'lucide-react'
+import { Bell, Search, UserPlus, ClipboardPlus } from 'lucide-react'
 import TeacherSidebar     from '@/components/teacher/TeacherSidebar'
 import ClassStatCards     from '@/components/teacher/ClassStatCards'
 import StudentTable       from '@/components/teacher/StudentTable'
@@ -18,6 +18,7 @@ export default function TeacherPage({ params }) {
   const [students, setStudents]     = useState([])
   const [classes, setClasses]       = useState([])
   const [loading, setLoading]       = useState(true)
+  const [error, setError]           = useState(null)
   const [search, setSearch]         = useState('')
   const [page, setPage]             = useState(1)
 
@@ -26,17 +27,35 @@ export default function TeacherPage({ params }) {
   const [selectedStudent, setSelectedStudent] = useState(null)
 
   async function loadAll() {
+    if (!teacherID) return
+
     try {
+      setError(null)
+      setLoading(true)
+
       const [dashRes, studentsRes] = await Promise.all([
-        fetch('/api/teacher?type=dashboard', { headers: { 'x-user-id': teacherID } }).then(r => r.json()),
-        fetch('/api/teacher?type=students',  { headers: { 'x-user-id': teacherID } }).then(r => r.json()),
+        fetch('/api/teacher?type=dashboard', { headers: { 'x-user-id': teacherID } }),
+        fetch('/api/teacher?type=students',  { headers: { 'x-user-id': teacherID } }),
       ])
-      setProfile(dashRes.profile)
-      setStats(dashRes.stats)
-      setStudents(studentsRes.students ?? [])
-      setClasses(dashRes.classes ?? [])
+
+      const dashData = await dashRes.json()
+      const studentsData = await studentsRes.json()
+
+      if (!dashRes.ok || !studentsRes.ok) {
+        throw new Error(
+          dashData.details ?? dashData.error ??
+          studentsData.details ?? studentsData.error ??
+          'Failed to load teacher data'
+        )
+      }
+
+      setProfile(dashData.profile)
+      setStats(dashData.stats)
+      setStudents(studentsData.students ?? [])
+      setClasses(dashData.classes ?? [])
     } catch (err) {
       console.error(err)
+      setError(err.message)
     } finally {
       setLoading(false)
     }
@@ -62,7 +81,6 @@ export default function TeacherPage({ params }) {
 
       <main className="flex-1 flex flex-col">
 
-        {/* Top bar */}
         <header className="flex items-center justify-between px-8 py-4 border-b border-gray-100">
           <h1 className="text-xl font-bold text-[#8B1A4A]">Student Management</h1>
           <div className="flex items-center gap-3">
@@ -84,7 +102,12 @@ export default function TeacherPage({ params }) {
 
         <div className="px-8 py-6 flex flex-col gap-6">
 
-          {/* Class overview */}
+          {error && (
+            <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+              {error}
+            </p>
+          )}
+
           <div>
             <p className="text-xs font-semibold text-gray-500">Class Overview</p>
             <p className="text-sm text-gray-400">
@@ -94,7 +117,6 @@ export default function TeacherPage({ params }) {
 
           <ClassStatCards stats={stats} loading={loading} />
 
-          {/* Action buttons */}
           <div className="flex gap-3 justify-end">
             <button
               onClick={() => setShowAddTask(true)}

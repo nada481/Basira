@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { getTasksByStudent } from '@/services/taskService'
 import TaskCard from '@/components/Tasks/TaskList'
 import {
   BookOpen,
@@ -32,8 +31,12 @@ export default function TaskPage() {
   useEffect(() => {
     async function load() {
       try {
-        const data = await getTasksByStudent('cccccccc-0000-0000-0000-000000000001') 
-        setTasks(data)
+        const res = await fetch('/api/tasks', {
+          headers: { 'x-user-id': 'cccccccc-0000-0000-0000-000000000001' },
+        })
+        if (!res.ok) throw new Error('Failed to load tasks')
+        const { tasks } = await res.json()
+        setTasks(tasks)
       } catch (err) {
         console.error(err)
       } finally {
