@@ -6,7 +6,7 @@ import {
   getReportStats,
 } from '@/services/documentService'
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin'
+import { supabaseAdmin as supabase } from '@/lib/supabase'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
 

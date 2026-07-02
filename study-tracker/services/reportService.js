@@ -1,6 +1,6 @@
 // create the report from the ai, get report based onn the session info time, etc, get weekly report, monthly report, yearly report maybe in
 // a clander or sth ?
-import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin'
+import { supabaseAdmin as supabase } from '@/lib/supabase'
 import { getTasksByStudent } from '@/services/taskService'
 import { getTotalDistractionTime, getDistractionBreakdown, getScreenNotes } from '@/services/focusService'
 import { getStuckPages, getPageProgress } from '@/services/pageTrackingService'

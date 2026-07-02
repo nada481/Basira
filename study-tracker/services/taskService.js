@@ -1,4 +1,4 @@
-import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin'
+import { supabaseAdmin as supabase } from '@/lib/supabase'
 
 export async function getTasksByStudent(userID) {
   const { data, error } = await supabase

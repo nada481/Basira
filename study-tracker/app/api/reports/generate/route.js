@@ -1,6 +1,6 @@
 import { collectReportData, saveReport } from '@/services/reportService'
 import { getStudentName }               from '@/services/profileService'
-import { supabaseAdmin as supabase }    from '@/lib/supabaseAdmin'
+import { supabaseAdmin as supabase } from '@/lib/supabase'
 
 function formatMins(seconds) {
   const h = Math.floor(seconds / 3600)

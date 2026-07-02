@@ -1,6 +1,6 @@
-import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin'
+import { supabaseAdmin as supabase } from '@/lib/supabase'
 //parentSerivce.js
-// ── 1. Parent name ─────────────────────────────────────────────────────────
+// Parent name 
 export async function getParentName(parentId) {
   const { data, error } = await supabase
     .from('profiles')

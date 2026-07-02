@@ -1,6 +1,6 @@
 import { getDocument, saveDocumentReview } from '@/services/documentService'
 import { notifyTeacher } from '@/services/teacherNotificationService'
-import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin'
+import { supabaseAdmin as supabase } from '@/lib/supabase'
 import mammoth from 'mammoth'
 
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'

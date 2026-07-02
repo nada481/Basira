@@ -1,4 +1,4 @@
-import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin'
+import { supabaseAdmin as supabase } from '@/lib/supabase'
 export async function startTimer({ userId, taskId }) {
   const { data, error } = await supabase
     .from('timer')
