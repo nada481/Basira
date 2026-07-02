@@ -1,5 +1,5 @@
 import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin'
-
+//parentSerivce.js
 // ── 1. Parent name ─────────────────────────────────────────────────────────
 export async function getParentName(parentId) {
   const { data, error } = await supabase
