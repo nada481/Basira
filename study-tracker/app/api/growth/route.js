@@ -2,7 +2,6 @@ import { getTotalStudyTime, getTimerHistory } from '@/services/timerService'
 import { getTasksByStudent } from '@/services/taskService'
 import { getMonthlyStats } from '@/services/reportService'
 
-// GET /api/growth
 export async function GET(req) {
   try {
     const studentId = req.headers.get('x-user-id')
@@ -10,12 +9,19 @@ export async function GET(req) {
 
     const now = new Date()
 
-    const [totalSeconds, timerHistory, tasks, monthlyStats] = await Promise.all([
+    const [totalSeconds, timerHistory, tasks] = await Promise.all([
       getTotalStudyTime(studentId),
       getTimerHistory(studentId),
       getTasksByStudent(studentId),
-      getMonthlyStats(studentId, now.getFullYear(), now.getMonth() + 1),
     ])
+
+    // Isolate monthlyStats — don't let it crash the whole route
+    let monthlyStats = null
+    try {
+      monthlyStats = await getMonthlyStats(studentId, now.getFullYear(), now.getMonth() + 1)
+    } catch (e) {
+      console.warn('getMonthlyStats failed:', e.message)
+    }
 
     return Response.json({ totalSeconds, timerHistory, tasks, monthlyStats })
 

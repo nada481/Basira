@@ -1,11 +1,21 @@
-import { getTasksByStudent, createTask } from '@/services/taskService'
+import { getTasksByStudent, getTaskById, createTask } from '@/services/taskService'
 
-// GET /api/tasks
+// GET /api/tasks or GET /api/tasks?taskId=xxx
 export async function GET(req) {
   try {
     const studentId = req.headers.get('x-user-id')
     if (!studentId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
+    const { searchParams } = new URL(req.url)
+    const taskId = searchParams.get('taskId')
+
+    // Single task lookup — used by study session page
+    if (taskId) {
+      const task = await getTaskById(taskId)
+      return Response.json({ task })
+    }
+
+    // All tasks for student
     const tasks = await getTasksByStudent(studentId)
     return Response.json({ tasks })
 
@@ -15,7 +25,7 @@ export async function GET(req) {
   }
 }
 
-// POST /api/tasks — create a task (with class_id, estimated_minutes, due_date)
+// POST /api/tasks
 export async function POST(req) {
   try {
     const studentId = req.headers.get('x-user-id')

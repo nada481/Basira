@@ -1,15 +1,15 @@
 'use client'
-import { useRouter } from 'next/navigation'
-import { useState, useEffect, useRef } from 'react'
-import { BookOpen, CheckSquare, TrendingUp, Users, X, Menu, Video, Monitor, Play, Pause, Settings } from 'lucide-react'
+
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useState, useEffect, useRef, Suspense } from 'react'
+import {
+  BookOpen, CheckSquare, TrendingUp, Users, X, Menu,
+  Video, Monitor, Play, Pause, Settings, Plus, Eye, EyeOff,
+} from 'lucide-react'
 import FocusCamera from '@/components/session/FocusCamera'
 import CompleteSessionModal from '@/components/session/CompleteSessionModal'
 
-const SESSION_GOALS = [
-  { id: 1, label: 'Complete Chapter 4 reading' },
-  { id: 2, label: 'Draft essay outline' },
-  { id: 3, label: 'Review vocabulary list' },
-]
+const STUDENT_ID = 'cccccccc-0000-0000-0000-000000000001'
 
 const NAV_ITEMS = [
   { label: 'Study Area', icon: BookOpen,    href: '/child' },
@@ -18,11 +18,23 @@ const NAV_ITEMS = [
   { label: 'Connection', icon: Users,       href: '/child/Connections' },
 ]
 
-export default function ChildStudyPage() {
-  const [goals, setGoals]                   = useState(SESSION_GOALS.map(g => ({ ...g, done: false })))
+function StudyPageContent() {
+  const router       = useRouter()
+  const searchParams = useSearchParams()
+  const taskId       = searchParams.get('taskId')
+
+  // Task info
+  const [task, setTask]         = useState(null)
+
+  // Goals — user-editable list
+  const [goals, setGoals]       = useState([])
+  const [newGoal, setNewGoal]   = useState('')
+
+  // Session state
   const [sessionActive, setSessionActive]   = useState(false)
-  const [timeLeft, setTimeLeft]             = useState(25 * 60)
+  const [elapsed, setElapsed]               = useState(0)
   const [isPaused, setIsPaused]             = useState(false)
+  const [timerVisible, setTimerVisible]     = useState(true)
   const [menuOpen, setMenuOpen]             = useState(false)
   const [activeNav, setActiveNav]           = useState('Study Area')
   const [isSharing, setIsSharing]           = useState(false)
@@ -30,19 +42,39 @@ export default function ChildStudyPage() {
   const [showCompleteModal, setShowCompleteModal] = useState(false)
   const [currentSessionId, setCurrentSessionId]   = useState(null)
 
-  const router         = useRouter()
-  const timerRef       = useRef(null)
-  const videoRef       = useRef(null)
-  const screenVideoRef = useRef(null)
+  const timerRef        = useRef(null)
+  const videoRef        = useRef(null)
+  const screenVideoRef  = useRef(null)
   const screenStreamRef = useRef(null)
 
+  // Load task if taskId is in URL
+  useEffect(() => {
+    if (!taskId) return
+    async function loadTask() {
+      try {
+        const res = await fetch(`/api/tasks?taskId=${taskId}`, {
+          headers: { 'x-user-id': STUDENT_ID },
+        })
+        const data = await res.json()
+        if (data.task) {
+          setTask(data.task)
+          // Pre-populate goals from task note if available
+          if (data.task.note) {
+            setGoals([{ id: Date.now(), label: data.task.note, done: false }])
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load task:', err)
+      }
+    }
+    loadTask()
+  }, [taskId])
+
+  // Timer counts UP (elapsed time)
   useEffect(() => {
     if (sessionActive && !isPaused) {
       timerRef.current = setInterval(() => {
-        setTimeLeft(t => {
-          if (t <= 1) { clearInterval(timerRef.current); setSessionActive(false); return 0 }
-          return t - 1
-        })
+        setElapsed(t => t + 1)
       }, 1000)
     } else {
       clearInterval(timerRef.current)
@@ -51,39 +83,51 @@ export default function ChildStudyPage() {
   }, [sessionActive, isPaused])
 
   const startSession = () => {
-    setTimeLeft(25 * 60)
+    setElapsed(0)
     setSessionActive(true)
     setIsPaused(false)
-    // TODO: replace with real timer ID from DB once auth is set up
     setCurrentSessionId('eeeeeeee-0000-0000-0000-000000000001')
   }
 
-  // Opens the upload modal instead of immediately ending the session
   const completeSession = () => {
     clearInterval(timerRef.current)
     setIsPaused(true)
     setShowCompleteModal(true)
   }
 
-  // Called when modal is confirmed (after upload + review)
   const onSessionConfirmed = () => {
     setShowCompleteModal(false)
     setSessionActive(false)
-    setTimeLeft(25 * 60)
+    setElapsed(0)
     stopScreenShare()
   }
 
-  // Called when modal is skipped (no upload)
   const onSessionSkipped = () => {
     setShowCompleteModal(false)
     setSessionActive(false)
-    setTimeLeft(25 * 60)
+    setElapsed(0)
     stopScreenShare()
   }
 
+  // Goals
   const toggleGoal = (id) => setGoals(prev => prev.map(g => g.id === id ? { ...g, done: !g.done } : g))
-  const formatTime = (s)  => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
-  const remaining  = goals.filter(g => !g.done).length
+  const removeGoal = (id) => setGoals(prev => prev.filter(g => g.id !== id))
+  const addGoal = () => {
+    const trimmed = newGoal.trim()
+    if (!trimmed) return
+    setGoals(prev => [...prev, { id: Date.now(), label: trimmed, done: false }])
+    setNewGoal('')
+  }
+
+  const formatTime = (s) => {
+    const h = Math.floor(s / 3600)
+    const m = Math.floor((s % 3600) / 60)
+    const sec = s % 60
+    if (h > 0) return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+    return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+  }
+
+  const remaining = goals.filter(g => !g.done).length
 
   async function startScreenShare() {
     setShareError(null)
@@ -105,14 +149,9 @@ export default function ChildStudyPage() {
     setIsSharing(false)
   }
 
-  function toggleScreenShare() {
-    isSharing ? stopScreenShare() : startScreenShare()
-  }
-
   return (
     <main className="min-h-screen bg-white">
 
-      {/* Overlay */}
       {menuOpen && (
         <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={() => setMenuOpen(false)} />
       )}
@@ -125,11 +164,9 @@ export default function ChildStudyPage() {
             <X className="w-5 h-5" />
           </button>
         </div>
-
         <nav className="flex flex-col gap-1 px-3 py-4 flex-1">
           {NAV_ITEMS.map(item => (
-            <button
-              key={item.label}
+            <button key={item.label}
               onClick={() => { router.push(item.href); setActiveNav(item.label); setMenuOpen(false) }}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left ${
                 activeNav === item.label ? 'bg-pink-50 text-[#8B1A4A]' : 'text-gray-600 hover:bg-gray-50'
@@ -140,7 +177,6 @@ export default function ChildStudyPage() {
             </button>
           ))}
         </nav>
-
         <div className="mx-3 mb-5 rounded-2xl bg-pink-50 border border-pink-100 p-4">
           <p className="text-xs font-semibold text-[#8B1A4A] uppercase tracking-wider mb-1">Family Connect</p>
           <p className="text-xs text-gray-500 mb-3">Your parent can watch your session live.</p>
@@ -157,8 +193,7 @@ export default function ChildStudyPage() {
             onClick={() => { setMenuOpen(false); if (!isSharing) startScreenShare() }}
             className="w-full flex items-center justify-center gap-2 bg-[#8B1A4A] hover:bg-[#C4526A] text-white text-xs font-bold py-2 rounded-xl transition-colors"
           >
-            <Monitor className="w-3.5 h-3.5" />
-            Share Screen with Mom
+            <Monitor className="w-3.5 h-3.5" /> Share Screen with Mom
           </button>
         </div>
       </aside>
@@ -166,10 +201,17 @@ export default function ChildStudyPage() {
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
         <div className="flex items-center gap-3">
-          <button onClick={() => setMenuOpen(true)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors">
+          <button onClick={() => setMenuOpen(true)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500">
             <Menu className="w-5 h-5" />
           </button>
-          <h1 className="text-xl font-semibold text-[#8B1A4A]">Study Session</h1>
+          <div>
+            <h1 className="text-xl font-semibold text-[#8B1A4A]">
+              {task ? task.taskName : 'Study Session'}
+            </h1>
+            {task?.subject && (
+              <p className="text-xs text-gray-400">{task.subject}</p>
+            )}
+          </div>
           {sessionActive && (
             <span className="flex items-center gap-1 text-xs font-medium text-[#8B1A4A] bg-pink-100 px-2 py-1 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-[#8B1A4A] animate-pulse" />
@@ -214,23 +256,78 @@ export default function ChildStudyPage() {
         <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-gray-800">Session Goals</h2>
-            <span className="text-sm text-gray-400">{remaining} Tasks Remaining</span>
+            <span className="text-sm text-gray-400">{remaining} Remaining</span>
           </div>
-          <div className="flex flex-col gap-3">
+
+          <div className="flex flex-col gap-2 mb-3">
             {goals.map(goal => (
-              <label key={goal.id} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors">
-                <input type="checkbox" checked={goal.done} onChange={() => toggleGoal(goal.id)} className="w-4 h-4 accent-[#8B1A4A] cursor-pointer" />
-                <span className={`text-sm ${goal.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>{goal.label}</span>
-              </label>
+              <div key={goal.id} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 group">
+                <input
+                  type="checkbox"
+                  checked={goal.done}
+                  onChange={() => toggleGoal(goal.id)}
+                  className="w-4 h-4 accent-[#8B1A4A] cursor-pointer flex-shrink-0"
+                />
+                <span className={`text-sm flex-1 ${goal.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                  {goal.label}
+                </span>
+                <button
+                  onClick={() => removeGoal(goal.id)}
+                  className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-opacity"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
             ))}
+
+            {goals.length === 0 && (
+              <p className="text-xs text-gray-400 italic px-1">No goals yet — add one below.</p>
+            )}
+          </div>
+
+          {/* Add goal input */}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newGoal}
+              onChange={e => setNewGoal(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && addGoal()}
+              placeholder="Add a goal for this session..."
+              className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#8B1A4A]/20"
+            />
+            <button
+              onClick={addGoal}
+              disabled={!newGoal.trim()}
+              className="p-2 bg-[#8B1A4A] hover:bg-[#a32258] disabled:opacity-40 text-white rounded-xl transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
         {/* Timer controls */}
         <div className="bg-white border border-gray-200 rounded-2xl px-5 py-4 shadow-sm flex items-center justify-between gap-3">
-          <div className="flex flex-col leading-tight">
-            <span className="timer-mono text-3xl font-bold text-[#8B1A4A]">{formatTime(timeLeft)}</span>
-            <span className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Stay Focused</span>
+
+          {/* Timer display with hide toggle */}
+          <div className="flex items-center gap-3">
+            {timerVisible ? (
+              <div className="flex flex-col leading-tight">
+                <span className="text-3xl font-bold text-[#8B1A4A] font-mono">{formatTime(elapsed)}</span>
+                <span className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Elapsed Time</span>
+              </div>
+            ) : (
+              <div className="flex flex-col leading-tight">
+                <span className="text-3xl font-bold text-gray-200 font-mono">••:••</span>
+                <span className="text-[10px] font-semibold tracking-widest text-gray-300 uppercase">Hidden</span>
+              </div>
+            )}
+            <button
+              onClick={() => setTimerVisible(v => !v)}
+              className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors"
+              title={timerVisible ? 'Hide timer' : 'Show timer'}
+            >
+              {timerVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
           </div>
 
           <div className="flex items-center gap-2 text-gray-400">
@@ -238,7 +335,7 @@ export default function ChildStudyPage() {
               <Video className="w-5 h-5" />
             </button>
             <button
-              onClick={toggleScreenShare}
+              onClick={() => isSharing ? stopScreenShare() : startScreenShare()}
               disabled={!sessionActive}
               className={`p-2 rounded-lg transition-colors ${isSharing ? 'bg-red-50 text-red-500 hover:bg-red-100' : sessionActive ? 'hover:bg-gray-100 text-gray-500' : 'opacity-30 cursor-not-allowed'}`}
             >
@@ -254,7 +351,6 @@ export default function ChildStudyPage() {
             {isPaused ? <Play className="w-4 h-4 ml-0.5" /> : <Pause className="w-4 h-4" />}
           </button>
 
-          {/* Complete — now opens upload modal */}
           <button
             onClick={completeSession}
             disabled={!sessionActive}
@@ -276,14 +372,20 @@ export default function ChildStudyPage() {
         />
       )}
 
-      {/* Complete Session Modal — upload + Gemini review + report */}
       <CompleteSessionModal
         open={showCompleteModal}
         sessionId={currentSessionId}
         onClose={onSessionSkipped}
         onConfirm={onSessionConfirmed}
       />
-
     </main>
+  )
+}
+
+export default function ChildStudyPage() {
+  return (
+    <Suspense>
+      <StudyPageContent />
+    </Suspense>
   )
 }
