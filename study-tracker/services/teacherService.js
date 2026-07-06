@@ -101,7 +101,7 @@ export async function getStudentFocusScore(studentId) {
   const { data, error } = await supabase
     .from('focus_events')
     .select('distraction_duration')
-    .eq('user_id', studentId)
+    .eq('userID', studentId)
     .gte('detected_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
 
   if (error) throw new Error(error.message)

@@ -1,58 +1,75 @@
 'use client'
 
-import { CheckCircle, Clock, AlertCircle } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { CheckCircle2, AlertCircle, PlayCircle } from 'lucide-react'
 
 const SUBJECT_COLORS = {
-  MATHEMATICS:         'bg-purple-100 text-purple-700',
-  BIOLOGY:             'bg-green-100 text-green-700',
-  HISTORY:             'bg-amber-100 text-amber-700',
-  'RELIGIOUS STUDIES': 'bg-teal-100 text-teal-700',
-  ARTS:                'bg-pink-100 text-pink-700',
-  SCIENCE:             'bg-blue-100 text-blue-700',
-  DEFAULT:             'bg-gray-100 text-gray-600',
+  history:          { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200' },
+  biology:          { bg: 'bg-green-50',   text: 'text-green-700',   border: 'border-green-200' },
+  mathematics:      { bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200' },
+  math:             { bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200' },
+  arabic:           { bg: 'bg-purple-50',  text: 'text-purple-700',  border: 'border-purple-200' },
+  chemistry:        { bg: 'bg-cyan-50',    text: 'text-cyan-700',    border: 'border-cyan-200' },
+  'religious studies': { bg: 'bg-teal-50', text: 'text-teal-700',    border: 'border-teal-200' },
+  arts:             { bg: 'bg-rose-50',    text: 'text-rose-700',    border: 'border-rose-200' },
+  english:          { bg: 'bg-indigo-50',  text: 'text-indigo-700',  border: 'border-indigo-200' },
+}
+
+function getSubjectStyle(subject) {
+  const key = (subject ?? '').toLowerCase()
+  for (const [k, v] of Object.entries(SUBJECT_COLORS)) {
+    if (key.includes(k)) return v
+  }
+  return { bg: 'bg-gray-50', text: 'text-gray-600', border: 'border-gray-200' }
 }
 
 export default function TaskCard({ task }) {
-  const subjectColor =
-    SUBJECT_COLORS[task.subject?.toUpperCase()] ?? SUBJECT_COLORS.DEFAULT
+  const router   = useRouter()
+  const style    = getSubjectStyle(task.subject)
+  const complete = task.completeTask === true
 
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl px-5 py-4 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between gap-4">
+    <div className="bg-white border border-gray-100 rounded-2xl px-5 py-4 flex items-center gap-4 hover:border-gray-200 hover:shadow-sm transition-all">
 
-        {/* Left */}
-        <div className="flex flex-col gap-1.5 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            {task.subject && (
-              <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${subjectColor}`}>
-                {task.subject}
-              </span>
-            )}
-          </div>
-
-          <h3 className="text-base font-bold text-gray-900 leading-snug">{task.taskName}</h3>
-
-          {task.note && (
-            <p className="text-xs text-gray-400 italic">"{task.note}"</p>
-          )}
+      {/* Subject pill */}
+      <div className="flex-1 min-w-0">
+        <div className="mb-1.5">
+          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${style.bg} ${style.text} ${style.border}`}>
+            {task.subject ?? 'General'}
+          </span>
         </div>
 
-        {/* Right */}
-        <div className="flex flex-col items-end gap-1 shrink-0">
-          {task.completeTask ? (
-            <span className="flex items-center gap-1 text-xs font-semibold text-green-600">
-              <CheckCircle className="w-3.5 h-3.5" /> COMPLETE
-            </span>
-          ) : task.TaskOvertime ? (
-            <span className="flex items-center gap-1 text-xs font-semibold text-orange-500">
-              <Clock className="w-3.5 h-3.5" /> OVERTIME
-            </span>
-          ) : (
-            <span className="flex items-center gap-1 text-xs font-semibold text-[#8B1A4A]">
-              <AlertCircle className="w-3.5 h-3.5" /> INCOMPLETE
-            </span>
-          )}
-        </div>
+        <p className="text-sm font-semibold text-gray-800 truncate">{task.taskName}</p>
+
+        {task.note && (
+          <p className="text-xs text-gray-400 italic mt-0.5 truncate">"{task.note}"</p>
+        )}
+      </div>
+
+      {/* Right side — status + action */}
+      <div className="flex items-center gap-3 flex-shrink-0">
+
+        {/* Start Session button — only for incomplete tasks */}
+        {!complete && (
+          <button
+            onClick={() => router.push(`/child?taskId=${task.id}`)}
+            className="flex items-center gap-1.5 text-xs font-semibold text-[#8B1A4A] border border-[#8B1A4A] px-3 py-1.5 rounded-full hover:bg-pink-50 transition-colors"
+          >
+            <PlayCircle className="w-3.5 h-3.5" />
+            Start Session
+          </button>
+        )}
+
+        {/* Status badge */}
+        {complete ? (
+          <span className="flex items-center gap-1 text-xs font-bold text-green-600">
+            <CheckCircle2 className="w-4 h-4" /> COMPLETE
+          </span>
+        ) : (
+          <span className="flex items-center gap-1 text-xs font-bold text-red-400">
+            <AlertCircle className="w-4 h-4" /> INCOMPLETE
+          </span>
+        )}
 
       </div>
     </div>

@@ -1,13 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { use } from 'react'
+import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
-import { Menu, X, Home, BarChart2, Users, UserPlus } from 'lucide-react'
+import { Menu, X, Home, Users, UserPlus } from 'lucide-react'
 import ChildCard from '@/components/ChildCard'
 
 export default function ParentFamilyPage({ params }) {
-  const { parentId, childId } = use(params)
+  const { parentId } = use(params)
 
   const router = useRouter()
 
@@ -25,6 +24,7 @@ export default function ParentFamilyPage({ params }) {
     { label: 'Home',        icon: Home,  href: `/parent/${parentId}` },
     { label: 'Connections', icon: Users, href: `/parent/Connections/${parentId}` },
   ]
+
   async function loadChildren() {
     try {
       const [profRes, conRes] = await Promise.all([
@@ -60,7 +60,7 @@ export default function ParentFamilyPage({ params }) {
       setLinkEmail('')
       setLinkSuccess(true)
       setTimeout(() => setLinkSuccess(false), 3000)
-      await loadChildren() // refresh list
+      await loadChildren()
     } catch (err) {
       setLinkError(err.message)
     } finally {
@@ -72,18 +72,31 @@ export default function ParentFamilyPage({ params }) {
   const parentInitials = parentName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <main className="min-h-screen bg-gray-50">
 
       {menuOpen && (
-        <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm lg:hidden" onClick={() => setMenuOpen(false)} />
+        <div
+          className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
+          onClick={() => setMenuOpen(false)}
+        />
       )}
 
-      <aside className={`
-        fixed lg:static top-0 left-0 h-full w-56 bg-white border-r border-gray-100 z-50
-        flex flex-col transition-transform duration-300
-        ${menuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
-        <div className="px-5 py-6 border-b border-gray-100">
+      <aside
+        className={`fixed top-0 left-0 h-full w-64 bg-white z-50 shadow-2xl flex flex-col transition-transform duration-300 ${
+          menuOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="flex items-center justify-between px-5 py-5 border-b border-gray-100">
+          <span className="text-lg font-bold text-[#8B1A4A]">Basira</span>
+          <button
+            onClick={() => setMenuOpen(false)}
+            className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="px-5 py-4 border-b border-gray-100">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-[#8B1A4A] text-white text-sm font-bold flex items-center justify-center">
               {parentInitials}
@@ -99,9 +112,15 @@ export default function ParentFamilyPage({ params }) {
           {NAV_ITEMS.map(item => (
             <button
               key={item.label}
-              onClick={() => { router.push(item.href); setActiveNav(item.label); setMenuOpen(false) }}
+              onClick={() => {
+                router.push(item.href)
+                setActiveNav(item.label)
+                setMenuOpen(false)
+              }}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left ${
-                activeNav === item.label ? 'bg-[#8B1A4A] text-white' : 'text-gray-600 hover:bg-gray-50'
+                activeNav === item.label
+                  ? 'bg-pink-50 text-[#8B1A4A]'
+                  : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
               <item.icon className="w-4 h-4 shrink-0" />
@@ -109,35 +128,33 @@ export default function ParentFamilyPage({ params }) {
             </button>
           ))}
         </nav>
-
-        <button onClick={() => setMenuOpen(false)} className="lg:hidden absolute top-4 right-4 p-1.5 text-gray-400">
-          <X className="w-5 h-5" />
-        </button>
       </aside>
 
-      <main className="flex-1 px-6 py-8 flex flex-col gap-6">
-
-        <button onClick={() => setMenuOpen(true)} className="lg:hidden self-start p-2 hover:bg-gray-100 rounded-lg text-gray-500 -mt-2">
+      <header className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-white">
+        <button
+          onClick={() => setMenuOpen(true)}
+          className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
+          aria-label="Open menu"
+        >
           <Menu className="w-5 h-5" />
         </button>
-
         <div>
-          <h1 className="text-2xl font-bold text-[#8B1A4A]">Family Management</h1>
-          <p className="text-xs text-gray-400 mt-1 max-w-md">
-            Overview of your linked children's academic progress. Monitor real-time activities and manage learning paths from a single sanctuary.
+          <h1 className="text-xl font-semibold text-[#8B1A4A]">Family Management</h1>
+          <p className="text-xs text-gray-400 mt-0.5 max-w-md">
+            Overview of your linked children&apos;s academic progress.
           </p>
         </div>
+      </header>
 
+      <div className="px-6 py-8 flex flex-col gap-6">
         {loading ? (
           <p className="text-sm text-gray-400">Loading...</p>
         ) : (
           <div className="flex flex-wrap gap-4">
-
             {children.map(child => (
               <ChildCard key={child.id} child={child} />
             ))}
 
-            {/* Link New Account card */}
             <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex flex-col gap-4 min-w-[220px] max-w-[260px]">
               <div className="flex flex-col items-center gap-2 text-center">
                 <div className="w-12 h-12 rounded-full bg-pink-50 border border-pink-100 flex items-center justify-center">
@@ -145,7 +162,7 @@ export default function ParentFamilyPage({ params }) {
                 </div>
                 <p className="text-sm font-bold text-gray-800">Link New Account</p>
                 <p className="text-xs text-gray-400">
-                  Connect another child's student profile using their registered email address.
+                  Connect another child&apos;s student profile using their registered email address.
                 </p>
               </div>
 
@@ -168,10 +185,9 @@ export default function ParentFamilyPage({ params }) {
                 {linking ? 'Linking...' : 'Link Student'}
               </button>
             </div>
-
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </main>
   )
 }
