@@ -124,7 +124,7 @@ export default function CompleteSessionModal({ open, onClose, onConfirm, session
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm px-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-400/30 backdrop-blur-sm px-4"
       onClick={handleClose}
     >
       <div

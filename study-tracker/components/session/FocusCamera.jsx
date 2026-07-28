@@ -1,43 +1,42 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useFocusMonitor } from '@/hooks/useFocusMonitor'
+import { DEMO_STUDENT_ID } from '@/lib/demoUsers'
 
-const STUDENT_ID = 'cccccccc-0000-0000-0000-000000000001'
-const POLL_INTERVAL_MS = 5000
+const SCREEN_POLL_MS = 5000
 const DEFAULT_ESTIMATED_SECONDS = 180
+
+const REASON_LABELS = {
+  phone_detected:  'Phone detected',
+  no_body:         'Not at desk',
+  not_writing:     'Not reading or writing',
+  talking:         'Talking detected',
+  off_task_screen: 'Screen looks off-task',
+}
 
 export default function FocusCamera({
   videoRef,
   screenVideoRef,
   sessionId,
+  userId = DEMO_STUDENT_ID,
+  enabled = true,
   estimatedSecondsPerQuestion = DEFAULT_ESTIMATED_SECONDS,
 }) {
-  const camCanvasRef     = useRef(null)
-  const screenCanvasRef  = useRef(null)
-  const [focusStatus, setFocusStatus]         = useState('focused')
-  const [countdown, setCountdown]             = useState(null)
-  const [distractReason, setDistractReason]   = useState(null)
+  const screenCanvasRef = useRef(null)
+  const [screenDistraction, setScreenDistraction] = useState(null)
+  const [countdown, setCountdown] = useState(null)
 
-  const currentQuestionRef  = useRef(null)
-  const questionStartRef    = useRef(null)
-  const loggedStuckRef      = useRef(new Set())
+  const currentQuestionRef = useRef(null)
+  const questionStartRef = useRef(null)
+  const loggedStuckRef = useRef(new Set())
 
-  useEffect(() => {
-    async function setupCamera() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true })
-        if (videoRef.current) videoRef.current.srcObject = stream
-      } catch (error) {
-        console.error('Error accessing webcam:', error)
-      }
-    }
-    setupCamera()
-    return () => {
-      if (videoRef.current?.srcObject) {
-        videoRef.current.srcObject.getTracks().forEach(t => t.stop())
-      }
-    }
-  }, [])
+  const { activeDistraction, isLoading, error: monitorError } = useFocusMonitor({
+    sessionId,
+    userId,
+    enabled,
+    videoRef,
+  })
 
   async function logQuestionTime(questionNumber, timeSpentSeconds) {
     if (!sessionId || questionNumber == null) return
@@ -51,7 +50,7 @@ export default function FocusCamera({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId:           STUDENT_ID,
+          userId,
           sessionId,
           questionNumber,
           timeSpentSeconds,
@@ -77,23 +76,31 @@ export default function FocusCamera({
     questionStartRef.current = newQuestion != null ? Date.now() : null
   }
 
+  // Gemini screen-share analysis (off-task screen + question tracking)
   useEffect(() => {
+    if (!enabled || !sessionId) return
+
     const interval = setInterval(async () => {
-      const camVideo     = videoRef.current
-      const camCanvas    = camCanvasRef.current
-      const screenVideo  = screenVideoRef?.current
+      const screenVideo = screenVideoRef?.current
       const screenCanvas = screenCanvasRef.current
-
-      if (!camVideo || !camCanvas || camVideo.readyState < 2) return
-
-      camCanvas.getContext('2d').drawImage(camVideo, 0, 0, camCanvas.width, camCanvas.height)
-      const camFrame = camCanvas.toDataURL('image/jpeg').split(',')[1]
-
-      let screenFrame = null
       const screenSharing = screenVideo?.srcObject && screenVideo.readyState >= 2
-      if (screenSharing && screenCanvas) {
-        screenCanvas.getContext('2d').drawImage(screenVideo, 0, 0, screenCanvas.width, screenCanvas.height)
-        screenFrame = screenCanvas.toDataURL('image/jpeg').split(',')[1]
+
+      if (!screenSharing || !screenCanvas) {
+        setScreenDistraction(null)
+        return
+      }
+
+      screenCanvas.getContext('2d').drawImage(screenVideo, 0, 0, screenCanvas.width, screenCanvas.height)
+      const screenFrame = screenCanvas.toDataURL('image/jpeg').split(',')[1]
+
+      let camFrame = null
+      const camVideo = videoRef?.current
+      if (camVideo?.readyState >= 2) {
+        const camCanvas = document.createElement('canvas')
+        camCanvas.width = 640
+        camCanvas.height = 480
+        camCanvas.getContext('2d').drawImage(camVideo, 0, 0, camCanvas.width, camCanvas.height)
+        camFrame = camCanvas.toDataURL('image/jpeg').split(',')[1]
       }
 
       try {
@@ -101,29 +108,26 @@ export default function FocusCamera({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-user-id':    STUDENT_ID,
+            'x-user-id': userId,
           },
           body: JSON.stringify({
-            frame:       camFrame,
+            frame: camFrame,
+            screenFrame,
             sessionId,
-            ...(screenFrame && { screenFrame }),
+            screenOnly: true,
           }),
         })
 
         const data = await res.json()
         if (!res.ok) throw new Error(data.error)
 
-        if (!data.focused) {
-          setFocusStatus('distracted')
-          setDistractReason(data.reason)
-          setCountdown(prev => prev === null ? 10 : prev)
+        if (!data.focused && (data.reason === 'off_task_screen' || data.reason === 'talking')) {
+          setScreenDistraction(data.reason)
         } else {
-          setFocusStatus('focused')
-          setDistractReason(null)
-          setCountdown(null)
+          setScreenDistraction(null)
         }
 
-        if (screenSharing && data.currentQuestion) {
+        if (data.currentQuestion) {
           const q = data.currentQuestion
           if (q !== currentQuestionRef.current) {
             switchQuestion(q)
@@ -135,9 +139,9 @@ export default function FocusCamera({
           }
         }
       } catch (err) {
-        console.error('Focus API error:', err)
+        console.error('Screen focus API error:', err)
       }
-    }, POLL_INTERVAL_MS)
+    }, SCREEN_POLL_MS)
 
     return () => {
       clearInterval(interval)
@@ -148,30 +152,41 @@ export default function FocusCamera({
         logQuestionTime(prev, elapsed)
       }
     }
-  }, [sessionId, estimatedSecondsPerQuestion])
+  }, [enabled, sessionId, userId, estimatedSecondsPerQuestion, screenVideoRef, videoRef])
+
+  const distractReason = screenDistraction ?? activeDistraction
+
+  useEffect(() => {
+    if (distractReason) setCountdown((prev) => (prev === null ? 10 : prev))
+    else setCountdown(null)
+  }, [distractReason])
 
   useEffect(() => {
     if (countdown === null || countdown <= 0) return
-    const timer = setTimeout(() => setCountdown(c => c - 1), 1000)
+    const timer = setTimeout(() => setCountdown((c) => c - 1), 1000)
     return () => clearTimeout(timer)
   }, [countdown])
 
-  const reasonLabel = {
-    phone_detected:   'Phone detected',
-    not_writing:      'Not reading or writing',
-    talking:          'Talking detected',
-    off_task_screen:  'Screen looks off-task',
-  }
-
   return (
     <>
-      <canvas ref={camCanvasRef}    width={640} height={480} className="hidden" />
       <canvas ref={screenCanvasRef} width={640} height={480} className="hidden" />
 
-      {focusStatus === 'distracted' && countdown !== null && (
+      {isLoading && (
+        <div className="fixed bottom-4 right-4 z-40 text-xs text-gray-500 bg-white border border-gray-200 px-3 py-1.5 rounded-lg shadow-sm">
+          Loading focus monitor…
+        </div>
+      )}
+
+      {monitorError && (
+        <div className="fixed bottom-4 right-4 z-40 text-xs text-red-600 bg-red-50 border border-red-100 px-3 py-1.5 rounded-lg shadow-sm max-w-xs">
+          Focus monitor: {monitorError}
+        </div>
+      )}
+
+      {distractReason && countdown !== null && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-yellow-50 border border-yellow-300 text-yellow-800 text-sm font-medium px-5 py-3 rounded-2xl shadow-lg animate-bounce">
           <span>⚠️</span>
-          <span>{reasonLabel[distractReason] ?? 'Stay focused!'}</span>
+          <span>{REASON_LABELS[distractReason] ?? 'Stay focused!'}</span>
           <span className="ml-2 bg-yellow-200 text-yellow-900 font-bold px-2 py-0.5 rounded-full text-xs">
             {countdown}s
           </span>

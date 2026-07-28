@@ -51,7 +51,7 @@ export default function StudentDetailModal({ open, onClose, student, teacherId }
   const completed = tasks.filter(t => t.completeTask).length
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm px-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-400/30 backdrop-blur-sm px-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
 
         {/* Header */}

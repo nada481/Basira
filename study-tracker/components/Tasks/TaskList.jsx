@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { CheckCircle2, AlertCircle, PlayCircle } from 'lucide-react'
+import { CheckCircle2, AlertCircle, PlayCircle, FileText } from 'lucide-react'
 
 const SUBJECT_COLORS = {
   history:          { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200' },
@@ -23,10 +23,21 @@ function getSubjectStyle(subject) {
   return { bg: 'bg-gray-50', text: 'text-gray-600', border: 'border-gray-200' }
 }
 
+function parseTaskNote(note) {
+  if (!note) return { text: null, attachmentUrl: null }
+
+  const match = note.match(/Attachment:\s*(https?:\/\/\S+)/i)
+  const attachmentUrl = match?.[1] ?? null
+  const text = note.replace(/\n?\n?Attachment:\s*https?:\/\/\S+/i, '').trim()
+
+  return { text: text || null, attachmentUrl }
+}
+
 export default function TaskCard({ task }) {
   const router   = useRouter()
   const style    = getSubjectStyle(task.subject)
   const complete = task.completeTask === true
+  const { text: noteText, attachmentUrl } = parseTaskNote(task.note)
 
   return (
     <div className="bg-white border border-gray-100 rounded-2xl px-5 py-4 flex items-center gap-4 hover:border-gray-200 hover:shadow-sm transition-all">
@@ -41,8 +52,23 @@ export default function TaskCard({ task }) {
 
         <p className="text-sm font-semibold text-gray-800 truncate">{task.taskName}</p>
 
-        {task.note && (
-          <p className="text-xs text-gray-400 italic mt-0.5 truncate">"{task.note}"</p>
+        {(noteText || attachmentUrl) && (
+          <div className="flex items-center gap-2 mt-0.5 min-w-0">
+            {noteText && (
+              <p className="text-xs text-gray-400 italic truncate">&ldquo;{noteText}&rdquo;</p>
+            )}
+            {attachmentUrl && (
+              <a
+                href={attachmentUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open assignment document"
+                className="flex-shrink-0 p-1.5 rounded-lg text-[#8B1A4A] hover:bg-pink-50 transition-colors"
+              >
+                <FileText className="w-4 h-4" />
+              </a>
+            )}
+          </div>
         )}
       </div>
 

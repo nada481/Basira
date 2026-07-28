@@ -1,5 +1,59 @@
 @import "tailwindcss";
 
+@theme {
+  /* existing project colors */
+  --color-primary: #8B1A4A;
+  --color-primary-light: #C4526A;
+  --color-badge: #E8A0B0;
+  --color-warn: #FEF3C7;
+
+  /* Basira landing page palette */
+  --color-bg: #ffffff;
+  --color-ink: #1a1a1a;
+  --color-maroon: #8A1538;
+  --color-gold: #C9A84C;
+  --color-teal: #4C8C7D;
+
+  --font-serif: "DM Serif Display", serif;
+  --font-sans: "DM Sans", sans-serif;
+
+  --animate-fadeUp: fadeUp 0.7s ease forwards;
+  --animate-drift: drift 9s ease-in-out infinite alternate;
+  --animate-driftSlow: drift 11s ease-in-out infinite alternate-reverse;
+  --animate-spulse: spulse 2s ease-in-out infinite;
+
+  @keyframes fadeUp {
+    0% { opacity: 0; transform: translateY(18px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes drift {
+    0% { transform: translate(0,0) scale(1); }
+    100% { transform: translate(40px,24px) scale(1.1); }
+  }
+  @keyframes spulse {
+    0%, 100% { opacity: 0.25; transform: scaleY(0.5) translateY(-8px); }
+    50% { opacity: 0.7; transform: scaleY(1) translateY(0); }
+  }
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-white text-gray-900 font-sans antialiased overflow-x-hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+}
+
 /* Make the timer number use a monospace font so it doesn't jump */
 .timer-mono {
   font-variant-numeric: tabular-nums;

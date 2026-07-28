@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Sidebar from '@/components/shared/Sidebar'
+import StudentSidebar from '@/components/shared/StudentSidebar'
 import ConnCard from '@/components/connections/ConnCard'
 import AddCard from '@/components/connections/AddCard'
 import SectionHeader from '@/components/connections/SectionHeader'
@@ -36,11 +36,11 @@ export default function ConnectionsPage() {
   useEffect(() => { fetchConnections() }, [])
 
   return (
-    <main className="w-full px-8 py-6">
+    <main className="min-h-screen w-full bg-white px-8 py-6">
 
       {/* Page header */}
       <div className="flex items-center gap-3 mb-1">
-        <Sidebar />
+        <StudentSidebar />
         <h1 className="text-3xl font-bold text-[#8B1A4A]">My Connections</h1>
       </div>
       <p className="text-sm text-gray-500 mb-6">

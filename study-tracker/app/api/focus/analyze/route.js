@@ -59,19 +59,34 @@ async function analyzeWithGemini(parts) {
 
 export async function POST(req) {
   try {
-    const { frame, screenFrame, sessionId } = await req.json()
+    const { frame, screenFrame, sessionId, screenOnly } = await req.json()
 
     if (!frame && !screenFrame) {
       return Response.json({ error: 'No frame data provided' }, { status: 400 })
     }
 
-    const parts = [{ text: FOCUS_PROMPT }]
+    const parts = [{ text: screenOnly
+      ? `Analyze the student's shared screen only (webcam is monitored separately).
+
+Respond ONLY with a JSON object, no markdown:
+{
+  "focused": true or false,
+  "reason": null or one of "talking" | "off_task_screen",
+  "currentQuestion": null or the question number on screen (e.g. "1", "2", "3a")
+}
+
+Rules:
+- off_task_screen if the screen shows non-study content
+- talking only if clearly visible from webcam that student is talking
+- currentQuestion: read question number from homework on screen; null if unclear`
+      : FOCUS_PROMPT
+    }]
     if (frame) parts.push({ inline_data: { mime_type: 'image/jpeg', data: frame } })
     if (screenFrame) parts.push({ inline_data: { mime_type: 'image/jpeg', data: screenFrame } })
 
     const result = await analyzeWithGemini(parts)
 
-    if (!result.focused && sessionId) {
+    if (!result.focused && sessionId && !['not_writing', 'phone_detected', 'no_body'].includes(result.reason)) {
       const userId = req.headers.get('x-user-id') || 'anonymous'
       await logFocusEvent({
         sessionId,

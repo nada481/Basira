@@ -11,7 +11,7 @@ export default function NoteModal({ open, onClose, doc }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm px-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-400/30 backdrop-blur-sm px-4"
       onClick={onClose}
     >
       <div

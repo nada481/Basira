@@ -1,19 +1,17 @@
 'use client'
 
-import { use, useState, useEffect } from 'react'
-import { Bell, Search, UserPlus, ClipboardPlus, Menu } from 'lucide-react'
-import TeacherSidebar     from '@/components/teacher/TeacherSidebar'
+import { useState, useEffect } from 'react'
+import { Bell, Search, UserPlus, ClipboardPlus } from 'lucide-react'
+import { DEMO_TEACHER_ID } from '@/lib/demoUsers'
+import PortalSidebar, { MenuButton } from '@/components/shared/PortalSidebar'
 import ClassStatCards     from '@/components/teacher/ClassStatCards'
 import StudentTable       from '@/components/teacher/StudentTable'
 import AddStudentModal    from '@/components/teacher/AddStudentModal'
 import AddTaskModal       from '@/components/teacher/AddTaskModal'
 import StudentDetailModal from '@/components/teacher/StudentDetailModal'
 
-export default function TeacherPage({ params }) {
-  const { teacherID } = use(params)
-
+export default function TeacherPage() {
   const [menuOpen, setMenuOpen]     = useState(false)
-  const [activeNav, setActiveNav]   = useState('Students')
   const [profile, setProfile]       = useState(null)
   const [stats, setStats]           = useState(null)
   const [students, setStudents]     = useState([])
@@ -26,17 +24,15 @@ export default function TeacherPage({ params }) {
   const [showAddStudent, setShowAddStudent]   = useState(false)
   const [showAddTask, setShowAddTask]         = useState(false)
   const [selectedStudent, setSelectedStudent] = useState(null)
-
+  const DEMO_TEACHER_ID='aaaaaaaa-0000-0000-0000-000000000001'
   async function loadAll() {
-    if (!teacherID) return
-
     try {
       setError(null)
       setLoading(true)
 
       const [dashRes, studentsRes] = await Promise.all([
-        fetch('/api/teacher?type=dashboard', { headers: { 'x-user-id': teacherID } }),
-        fetch('/api/teacher?type=students',  { headers: { 'x-user-id': teacherID } }),
+        fetch('/api/teacher?type=dashboard', { headers: { 'x-user-id': DEMO_TEACHER_ID } }),
+        fetch('/api/teacher?type=students',  { headers: { 'x-user-id': DEMO_TEACHER_ID } }),
       ])
 
       const dashData = await dashRes.json()
@@ -62,7 +58,7 @@ export default function TeacherPage({ params }) {
     }
   }
 
-  useEffect(() => { loadAll() }, [teacherID])
+  useEffect(() => { loadAll() }, [])
 
   const filtered = students.filter(s => {
     const name  = (s.full_name ?? s.display_name ?? '').toLowerCase()
@@ -71,33 +67,21 @@ export default function TeacherPage({ params }) {
     return name.includes(q) || email.includes(q)
   })
 
+  const teacherName = profile?.display_name ?? profile?.full_name ?? 'Teacher'
+
   return (
     <main className="min-h-screen bg-white">
-
-      {menuOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
-          onClick={() => setMenuOpen(false)}
-        />
-      )}
-
-      <TeacherSidebar
-        profile={profile}
-        activeNav={activeNav}
-        onNavChange={setActiveNav}
+      <PortalSidebar
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
+        navItems={[]}
+        profileName={teacherName}
+        profileRole="Lead Educator"
       />
 
       <header className="flex items-center justify-between px-8 py-4 border-b border-gray-100">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setMenuOpen(true)}
-            className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
-            aria-label="Open menu"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
+          <MenuButton onClick={() => setMenuOpen(true)} />
           <h1 className="text-xl font-bold text-[#8B1A4A]">Student Management</h1>
         </div>
         <div className="flex items-center gap-3">
@@ -163,7 +147,7 @@ export default function TeacherPage({ params }) {
         open={showAddStudent}
         onClose={() => setShowAddStudent(false)}
         classes={classes}
-        teacherId={teacherID}
+        teacherId={DEMO_TEACHER_ID}
         onSuccess={loadAll}
       />
 
@@ -171,7 +155,7 @@ export default function TeacherPage({ params }) {
         open={showAddTask}
         onClose={() => setShowAddTask(false)}
         classes={classes}
-        teacherId={teacherID}
+        teacherId={DEMO_TEACHER_ID}
         onSuccess={loadAll}
       />
 
@@ -179,7 +163,7 @@ export default function TeacherPage({ params }) {
         open={!!selectedStudent}
         onClose={() => setSelectedStudent(null)}
         student={selectedStudent}
-        teacherId={teacherID}
+        teacherId={DEMO_TEACHER_ID}
       />
 
     </main>

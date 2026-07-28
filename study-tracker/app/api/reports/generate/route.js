@@ -52,6 +52,7 @@ export async function POST(req) {
       .map(([reason, secs]) => {
         const label = {
           phone_detected:  'phone detected',
+          no_body:         'away from desk',
           not_writing:     'not facing the device or book',
           talking:         'talking',
           off_task_screen: 'off-task screen activity',

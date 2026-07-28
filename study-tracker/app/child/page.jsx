@@ -1,25 +1,17 @@
 'use client'
 
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { useState, useEffect, useRef, Suspense } from 'react'
 import {
-  BookOpen, CheckSquare, TrendingUp, Users, X, Menu,
-  Video, Monitor, Play, Pause, Settings, Plus, Eye, EyeOff,
+  Video, Monitor, Play, Pause, Settings, Plus, Eye, EyeOff, X,
 } from 'lucide-react'
 import FocusCamera from '@/components/session/FocusCamera'
 import CompleteSessionModal from '@/components/session/CompleteSessionModal'
-
-const STUDENT_ID = 'cccccccc-0000-0000-0000-000000000001'
-
-const NAV_ITEMS = [
-  { label: 'Study Area', icon: BookOpen,    href: '/child' },
-  { label: 'Tasks',      icon: CheckSquare, href: '/child/Task' },
-  { label: 'Growth',     icon: TrendingUp,  href: '/child/Growth' },
-  { label: 'Connection', icon: Users,       href: '/child/Connections' },
-]
+import PortalSidebar, { MenuButton } from '@/components/shared/PortalSidebar'
+import { STUDENT_NAV } from '@/lib/portalNav'
+import { DEMO_STUDENT_ID as STUDENT_ID } from '@/lib/demoUsers'
 
 function StudyPageContent() {
-  const router       = useRouter()
   const searchParams = useSearchParams()
   const taskId       = searchParams.get('taskId')
 
@@ -36,7 +28,7 @@ function StudyPageContent() {
   const [isPaused, setIsPaused]             = useState(false)
   const [timerVisible, setTimerVisible]     = useState(true)
   const [menuOpen, setMenuOpen]             = useState(false)
-  const [activeNav, setActiveNav]           = useState('Study Area')
+  const [profileName, setProfileName]       = useState('Student')
   const [isSharing, setIsSharing]           = useState(false)
   const [shareError, setShareError]         = useState(null)
   const [showCompleteModal, setShowCompleteModal] = useState(false)
@@ -46,6 +38,16 @@ function StudyPageContent() {
   const videoRef        = useRef(null)
   const screenVideoRef  = useRef(null)
   const screenStreamRef = useRef(null)
+
+  useEffect(() => {
+    fetch('/api/profile', { headers: { 'x-user-id': STUDENT_ID } })
+      .then(r => r.json())
+      .then(data => {
+        const p = data.profile
+        if (p) setProfileName(p.display_name ?? p.full_name ?? 'Student')
+      })
+      .catch(() => {})
+  }, [])
 
   // Load task if taskId is in URL
   useEffect(() => {
@@ -152,58 +154,18 @@ function StudyPageContent() {
   return (
     <main className="min-h-screen bg-white">
 
-      {menuOpen && (
-        <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={() => setMenuOpen(false)} />
-      )}
-
-      {/* Sidebar */}
-      <aside className={`fixed top-0 left-0 h-full w-64 bg-white z-50 shadow-2xl flex flex-col transition-transform duration-300 ${menuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="flex items-center justify-between px-5 py-5 border-b border-gray-100">
-          <span className="text-lg font-bold text-[#8B1A4A]">Basira</span>
-          <button onClick={() => setMenuOpen(false)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <nav className="flex flex-col gap-1 px-3 py-4 flex-1">
-          {NAV_ITEMS.map(item => (
-            <button key={item.label}
-              onClick={() => { router.push(item.href); setActiveNav(item.label); setMenuOpen(false) }}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left ${
-                activeNav === item.label ? 'bg-pink-50 text-[#8B1A4A]' : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <item.icon className="w-4 h-4 shrink-0" />
-              {item.label}
-            </button>
-          ))}
-        </nav>
-        <div className="mx-3 mb-5 rounded-2xl bg-pink-50 border border-pink-100 p-4">
-          <p className="text-xs font-semibold text-[#8B1A4A] uppercase tracking-wider mb-1">Family Connect</p>
-          <p className="text-xs text-gray-500 mb-3">Your parent can watch your session live.</p>
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-full bg-[#8B1A4A] text-white flex items-center justify-center text-xs font-bold">M</div>
-            <div>
-              <p className="text-xs font-semibold text-gray-700">Mom</p>
-              <span className="flex items-center gap-1 text-[10px] text-green-600 font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500" /> Online
-              </span>
-            </div>
-          </div>
-          <button
-            onClick={() => { setMenuOpen(false); if (!isSharing) startScreenShare() }}
-            className="w-full flex items-center justify-center gap-2 bg-[#8B1A4A] hover:bg-[#C4526A] text-white text-xs font-bold py-2 rounded-xl transition-colors"
-          >
-            <Monitor className="w-3.5 h-3.5" /> Share Screen with Mom
-          </button>
-        </div>
-      </aside>
+      <PortalSidebar
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        navItems={STUDENT_NAV}
+        profileName={profileName}
+        profileRole="Student"
+      />
 
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
         <div className="flex items-center gap-3">
-          <button onClick={() => setMenuOpen(true)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500">
-            <Menu className="w-5 h-5" />
-          </button>
+          <MenuButton onClick={() => setMenuOpen(true)} />
           <div>
             <h1 className="text-xl font-semibold text-[#8B1A4A]">
               {task ? task.taskName : 'Study Session'}
@@ -228,30 +190,33 @@ function StudyPageContent() {
         </button>
       </header>
 
-      <div className="px-8 py-6 flex flex-col gap-5">
+      <div className="px-8 py-6 grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
 
-        {/* Camera / Screen preview */}
-        <div className="w-full rounded-2xl overflow-hidden bg-gray-100 relative" style={{ aspectRatio: '16/9' }}>
-          {isSharing && <video ref={screenVideoRef} autoPlay muted className="w-full h-full object-contain bg-black" />}
+        {/* Camera — fills full width of left column, square */}
+        <div className="w-full aspect-square rounded-2xl overflow-hidden bg-gray-100 relative">
+          {isSharing && <video ref={screenVideoRef} autoPlay muted className="w-full h-full object-contain bg-gray-100" />}
           {sessionActive && !isSharing && <video ref={videoRef} autoPlay muted className="w-full h-full object-cover" />}
           {!sessionActive && !isSharing && (
             <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-gray-400">
-              <span className="text-4xl">📷</span>
+              <span className="text-3xl">📷</span>
               <span className="text-sm">Camera will start when session begins</span>
             </div>
           )}
           {isSharing && (
-            <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/60 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
+            <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-white/90 text-gray-800 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm">
               <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /> Sharing Screen
             </div>
           )}
           {isSharing && sessionActive && (
-            <video ref={videoRef} autoPlay muted className="absolute bottom-3 right-3 w-28 rounded-xl border-2 border-white shadow-lg object-cover" style={{ aspectRatio: '4/3' }} />
+            <video ref={videoRef} autoPlay muted className="absolute bottom-3 right-3 w-24 rounded-xl border-2 border-white shadow-lg object-cover" style={{ aspectRatio: '4/3' }} />
           )}
         </div>
 
-        {shareError && <p className="text-xs text-red-500 text-center -mt-3">{shareError}</p>}
+        {shareError && (
+          <p className="text-xs text-red-500 text-center lg:col-span-2 -mt-2">{shareError}</p>
+        )}
 
+        <div className="flex flex-col gap-5 lg:col-start-2 lg:row-start-1 lg:row-span-2">
         {/* Session Goals */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
@@ -361,6 +326,8 @@ function StudyPageContent() {
           </button>
         </div>
 
+        </div>
+
       </div>
 
       {sessionActive && (
@@ -368,6 +335,8 @@ function StudyPageContent() {
           videoRef={videoRef}
           screenVideoRef={screenVideoRef}
           sessionId={currentSessionId}
+          userId={STUDENT_ID}
+          enabled={!isPaused}
           estimatedSecondsPerQuestion={3 * 60}
         />
       )}

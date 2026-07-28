@@ -7,10 +7,11 @@ import {
   FlaskConical, BookOpen, Microscope, History,
   Music, Palette, Code, BookMarked, Sparkles,
 } from 'lucide-react'
-import Sidebar from '@/components/shared/Sidebar'
+import ParentSidebar from '@/components/shared/ParentSidebar'
 import NoteModal from '@/components/NoteModal'
 
 const FILTERS = ['All', 'This Week', 'This Month']
+const DEMO_PARENT_ID='bbbbbbbb-0000-0000-0000-000000000001'
 
 const SUBJECT_ICON_MAP = [
   { keywords: ['math', 'calcul', 'fraction', 'algebra'], icon: Calculator,    bg: 'bg-blue-50',    color: 'text-blue-500' },
@@ -74,7 +75,7 @@ export default function ProgressPage({ params }) {
     <main className="w-full px-8 py-6">
 
       <div className="flex items-center gap-3 mb-1">
-        <Sidebar />
+        <ParentSidebar />
         <h1 className="text-3xl font-bold text-[#8B1A4A]">Parent Reports</h1>
       </div>
       <p className="text-sm text-gray-500 mb-6">
@@ -176,22 +177,22 @@ export default function ProgressPage({ params }) {
 
       {/* Bottom stat cards */}
       {stats && (
-        <div className="grid grid-cols-3 gap-6">
-          <div className="flex flex-col gap-2">
+        <div className="flex flex-col sm:flex-row gap-6 sm:gap-10">
+          <div className="flex flex-1 flex-col gap-2 items-center text-center">
             <TrendingUp className="w-5 h-5 text-[#8B1A4A]" />
             <p className="text-sm font-bold text-gray-800">Weekly Growth</p>
             <p className="text-xs text-gray-400">
               {stats.newThisWeek} new submission{stats.newThisWeek !== 1 ? 's' : ''} this week.
             </p>
           </div>
-          <div className="flex flex-col gap-2 items-center text-center">
+          <div className="flex flex-1 flex-col gap-2 items-center text-center">
             <Target className="w-5 h-5 text-[#8B1A4A]" />
             <p className="text-sm font-bold text-gray-800">Focus Metrics</p>
             <p className="text-xs text-gray-400">
               {stats.reviewed} of {stats.total} submissions reviewed.
             </p>
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-1 flex-col gap-2 items-center text-center">
             <MessageSquare className="w-5 h-5 text-[#8B1A4A]" />
             <p className="text-sm font-bold text-gray-800">Teacher Feedback</p>
             <p className="text-xs text-gray-400">

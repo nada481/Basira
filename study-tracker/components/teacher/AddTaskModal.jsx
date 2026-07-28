@@ -70,7 +70,7 @@ export default function AddTaskModal({ open, onClose, classes, teacherId, onSucc
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm px-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-400/30 backdrop-blur-sm px-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
 
         <div className="flex items-center justify-between mb-4">

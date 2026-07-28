@@ -3,8 +3,13 @@ const nextConfig = {
   async redirects() {
     return [
       {
-        source: '/',
-        destination: '/child',
+        source: '/teacher/:teacherID',
+        destination: '/teacher',
+        permanent: false,
+      },
+      {
+        source: '/parent/Connections/:parentId',
+        destination: '/parent',
         permanent: false,
       },
     ]

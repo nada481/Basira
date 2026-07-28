@@ -1,28 +1,17 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import {
-  BookOpen, CheckSquare, TrendingUp, Users, Menu, X, Bell,
-  Star, Clock, Target, BarChart2, Flame, Sunrise, BookMarked, Trophy, Rocket,
-} from 'lucide-react'
+import { Bell, Star, Clock, Target, BarChart2, Flame, Sunrise, BookMarked, Trophy, Rocket } from 'lucide-react'
+import PortalSidebar, { MenuButton } from '@/components/shared/PortalSidebar'
+import { STUDENT_NAV } from '@/lib/portalNav'
+import { DEMO_STUDENT_ID as STUDENT_ID } from '@/lib/demoUsers'
 import GrowthStatCard    from '@/components/growth/GrowthStatCard'
 import LineChart         from '@/components/charts/LineChart'
 import SubjectProgress   from '@/components/growth/SubjectProgress'
 import AchievementBadges from '@/components/growth/AchievementBadges'
 import NextGoal          from '@/components/growth/NextGoal'
 
-const NAV_ITEMS = [
-  { label: 'Study Area', icon: BookOpen,    href: '/child' },
-  { label: 'Tasks',      icon: CheckSquare, href: '/child/Task' },
-  { label: 'Growth',     icon: TrendingUp,  href: '/child/growth' },
-  { label: 'Connection', icon: Users,       href: '/child/Connections' },
-]
-
-const STUDENT_ID = 'cccccccc-0000-0000-0000-000000000001'
-
 export default function GrowthPage() {
-  const router = useRouter()
   const [menuOpen, setMenuOpen]   = useState(false)
   const [loading, setLoading]     = useState(true)
   const [profile, setProfile]     = useState(null)
@@ -111,30 +100,19 @@ export default function GrowthPage() {
   const initials    = studentName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
 
-      {menuOpen && <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={() => setMenuOpen(false)} />}
-
-      <aside className={`fixed top-0 left-0 h-full w-64 bg-white z-50 shadow-2xl flex flex-col transition-transform duration-300 ${menuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="flex items-center justify-between px-5 py-5 border-b border-gray-100">
-          <span className="text-lg font-bold text-[#8B1A4A]">Basira</span>
-          <button onClick={() => setMenuOpen(false)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500"><X className="w-5 h-5" /></button>
-        </div>
-        <nav className="flex flex-col gap-1 px-3 py-4 flex-1">
-          {NAV_ITEMS.map(item => (
-            <button key={item.label} onClick={() => { router.push(item.href); setMenuOpen(false) }}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left ${
-                item.label === 'Growth' ? 'bg-pink-50 text-[#8B1A4A]' : 'text-gray-600 hover:bg-gray-50'
-              }`}>
-              <item.icon className="w-4 h-4 shrink-0" />{item.label}
-            </button>
-          ))}
-        </nav>
-      </aside>
+      <PortalSidebar
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        navItems={STUDENT_NAV}
+        profileName={studentName}
+        profileRole="Student"
+      />
 
       <header className="bg-white border-b border-gray-100 px-8 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button onClick={() => setMenuOpen(true)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500"><Menu className="w-5 h-5" /></button>
+          <MenuButton onClick={() => setMenuOpen(true)} />
           <div>
             <h1 className="text-lg font-bold text-[#8B1A4A]">Growth</h1>
             <p className="text-xs text-gray-400">Track your learning journey and achievements</p>
