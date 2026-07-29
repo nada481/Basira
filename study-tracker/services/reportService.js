@@ -2,7 +2,7 @@
 // a clander or sth ?
 import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin'
 import { getTasksByStudent } from '@/services/taskService'
-import { getTotalDistractionTime, getDistractionBreakdown, getScreenNotes } from '@/services/focusService'
+import { getTotalDistractionTime, getDistractionBreakdown, getScreenNotes, getSessionPerformance } from '@/services/focusService'
 import { getStuckPages, getPageProgress } from '@/services/pageTrackingService'
 import { getTimerHistory, getTotalStudyTime } from '@/services/timerService'
 
@@ -64,6 +64,7 @@ export async function collectReportData(studentId, sessionId) {
     screenNotes,
     stuckPages,
     pageProgress,
+    sessionPerformance,
   ] = await Promise.all([
     getTasksByStudent(studentId),
     getTimerHistory(studentId),
@@ -73,6 +74,7 @@ export async function collectReportData(studentId, sessionId) {
     getScreenNotes(sessionId),
     getStuckPages({ userId: studentId, session_id: sessionId }),
     getPageProgress({ userId: studentId, session_id: sessionId }),
+    sessionId ? getSessionPerformance(sessionId) : Promise.resolve(null),
   ])
 
   return {
@@ -84,6 +86,7 @@ export async function collectReportData(studentId, sessionId) {
     screenNotes,
     stuckPages,
     pageProgress,
+    sessionPerformance,
   }
 }
 

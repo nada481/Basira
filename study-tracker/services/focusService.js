@@ -1,4 +1,8 @@
 import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin'
+import {
+  getDistractionLabel,
+  buildSessionPerformanceSummary,
+} from '@/lib/sessionPerformance'
 
 // Create a new focus event (called every time AI detects distraction)
 export async function logFocusEvent({
@@ -79,4 +83,39 @@ export async function getScreenNotes(sessionId) {
 
   if (error) throw new Error(error.message)
   return data
+}
+
+/** Structured focus/study session stats for parent reports. */
+export async function getSessionPerformance(sessionId) {
+  if (!sessionId) return null
+
+  const [events, totalDistracted, breakdown, timerResult] = await Promise.all([
+    getFocusEventsBySession(sessionId),
+    getTotalDistractionTime(sessionId),
+    getDistractionBreakdown(sessionId),
+    supabase
+      .from('timer')
+      .select('total_seconds, start_time, finish_time')
+      .eq('id', sessionId)
+      .maybeSingle(),
+  ])
+
+  if (timerResult.error) throw new Error(timerResult.error.message)
+
+  const studySeconds = timerResult.data?.total_seconds ?? 0
+
+  const distractions = (events ?? []).map((row) => ({
+    reason: row.distraction_reason,
+    label: getDistractionLabel(row.distraction_reason),
+    durationSeconds: row.distraction_duration ?? 0,
+    detectedAt: row.detected_at,
+    screenNote: row.screen_note ?? null,
+  }))
+
+  return buildSessionPerformanceSummary({
+    studySeconds,
+    totalDistractedSeconds: totalDistracted,
+    distractionBreakdown: breakdown,
+    distractions,
+  })
 }

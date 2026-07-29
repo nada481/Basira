@@ -1,49 +1,24 @@
-import { collectReportData, saveReport } from '@/services/reportService'
-import { supabaseAdmin as supabase }     from '@/lib/supabaseAdmin'
-
-function formatMins(seconds) {
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  if (h > 0) return `${h}h ${m % 60}m`
-  return `${m} mins`
-}
-
-async function getStudentName(studentId) {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('display_name, full_name, email')
-    .eq('id', studentId)
-    .maybeSingle()
-  if (error) throw new Error(error.message)
-  return data?.display_name ?? data?.full_name ?? data?.email ?? 'Student'
-}
+import { createDocument as createDocumentRecord, saveSessionPerformance } from '@/services/documentService'
+import { getSessionPerformance } from '@/services/focusService'
 
 export async function POST(req) {
   try {
-    const { studentId, sessionId } = await req.json()
+    const studentId = req.headers.get('x-user-id')
+    if (!studentId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const [studentName, data] = await Promise.all([
-      getStudentName(studentId),
-      collectReportData(studentId, sessionId),
-    ])
+    const { sessionId, fileUrl } = await req.json()
+    if (!fileUrl) return Response.json({ error: 'fileUrl is required' }, { status: 400 })
 
-    const {
-      tasks,
-      timerHistory,
-      totalStudyTime,
-      totalDistracted,
-      distractionBreakdown,
-      stuckPages,
-    } = data
+    const doc = await createDocumentRecord(studentId, sessionId ?? null, fileUrl)
 
-    const today = new Date().toISOString().split('T')[0]
-    const { data: docs } = await supabase
-      .from('documents')
-      .select('ai_verified, ai_feedback, session_id')
-      .eq('userID', studentId)
-      .gte('created_at', `${today}T00:00:00.000Z`)
-      .not('ai_feedback', 'is', null)
+    if (sessionId) {
+      const sessionPerformance = await getSessionPerformance(sessionId)
+      if (sessionPerformance) {
+        await saveSessionPerformance(doc.id, sessionPerformance)
+      }
+    }
 
+<<<<<<< Updated upstream
     const documentReviews = (docs ?? []).map(d =>
       `${d.ai_verified ? '✓' : '⚠'} ${d.ai_feedback}`
     ).join(' | ') || 'No documents submitted today.'
@@ -110,9 +85,15 @@ Document reviews: ${documentReviews}`,
     const report    = await saveReport({ studentId, narrative })
 
     return Response.json({ report })
+=======
+    return Response.json({ documentId: doc.id })
+>>>>>>> Stashed changes
 
   } catch (error) {
-    console.error('Report generation error:', error)
-    return Response.json({ error: error.message }, { status: 500 })
+    console.error('Create document error:', error)
+    return Response.json(
+      { error: 'Failed to create document', details: error.message },
+      { status: 500 }
+    )
   }
 }

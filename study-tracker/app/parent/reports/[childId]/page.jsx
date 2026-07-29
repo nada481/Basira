@@ -5,10 +5,11 @@ import {
   TrendingUp, Target, MessageSquare, Clock,
   FileText, ExternalLink, Calculator, Globe,
   FlaskConical, BookOpen, Microscope, History,
-  Music, Palette, Code, BookMarked, Sparkles,
+  Music, Palette, Code, BookMarked, Sparkles, AlertTriangle,
 } from 'lucide-react'
 import ParentSidebar from '@/components/shared/ParentSidebar'
 import NoteModal from '@/components/NoteModal'
+import { formatDuration, getDistractionLabel } from '@/lib/sessionPerformance'
 
 const FILTERS = ['All', 'This Week', 'This Month']
 const DEMO_PARENT_ID='bbbbbbbb-0000-0000-0000-000000000001'
@@ -124,6 +125,10 @@ export default function ProgressPage({ params }) {
             const reviewed = doc.ai_verified === true
             const label    = `${subject ? subject + ' – ' : ''}${taskName}`
             const { icon: SubjectIcon, bg, color } = getSubjectStyle(subject)
+            const perf = doc.sessionPerformance
+            const distractionEntries = perf?.distractionBreakdown
+              ? Object.entries(perf.distractionBreakdown)
+              : []
 
             return (
               <div
@@ -136,15 +141,36 @@ export default function ProgressPage({ params }) {
 
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-800 truncate">{label}</p>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <Clock className="w-3 h-3 text-gray-400" />
                     <span className="text-xs text-gray-400">{formatFocus(doc.focusSeconds ?? 0)}</span>
+                    {perf && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-pink-50 text-[#8B1A4A]">
+                        {perf.focusScore ?? 100}% focus
+                      </span>
+                    )}
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                       reviewed ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'
                     }`}>
                       {reviewed ? 'REVIEWED' : 'WAITING REVIEW'}
                     </span>
                   </div>
+                  {perf?.hadDistractions && distractionEntries.length > 0 && (
+                    <div className="flex items-start gap-1.5 mt-2 flex-wrap">
+                      <AlertTriangle className="w-3 h-3 text-amber-500 mt-0.5 shrink-0" />
+                      {distractionEntries.map(([reason, secs]) => (
+                        <span
+                          key={reason}
+                          className="text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100"
+                        >
+                          {getDistractionLabel(reason)} · {formatDuration(secs)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {perf && !perf.hadDistractions && (
+                    <p className="text-[11px] text-green-600 mt-2">No distractions during this session.</p>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-4 flex-shrink-0">
@@ -189,7 +215,7 @@ export default function ProgressPage({ params }) {
             <Target className="w-5 h-5 text-[#8B1A4A]" />
             <p className="text-sm font-bold text-gray-800">Focus Metrics</p>
             <p className="text-xs text-gray-400">
-              {stats.reviewed} of {stats.total} submissions reviewed.
+              {stats.reviewed} of {stats.total} submissions reviewed with session focus details.
             </p>
           </div>
           <div className="flex flex-1 flex-col gap-2 items-center text-center">

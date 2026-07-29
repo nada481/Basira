@@ -1,5 +1,6 @@
-import { getDocument, saveDocumentReview } from '@/services/documentService'
+import { getDocument, saveDocumentReview, saveSessionPerformance } from '@/services/documentService'
 import { notifyTeacher } from '@/services/teacherNotificationService'
+import { getSessionPerformance } from '@/services/focusService'
 import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin'
 import mammoth from 'mammoth'
 
@@ -114,6 +115,13 @@ If the document has no clearly numbered questions (e.g. it's an essay or single 
       feedback: parsed.summary ?? 'Review complete.',
       details,
     })
+
+    if (doc.session_id && !saved?.ai_details?.sessionPerformance) {
+      const sessionPerformance = await getSessionPerformance(doc.session_id)
+      if (sessionPerformance) {
+        await saveSessionPerformance(documentId, sessionPerformance)
+      }
+    }
 
     // Flag for teacher review if anything was wrong/incomplete
     if (!parsed.verified) {

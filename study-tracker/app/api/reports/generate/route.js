@@ -1,21 +1,17 @@
 import { collectReportData, saveReport } from '@/services/reportService'
 import { getStudentName }               from '@/services/profileService'
+import { getSessionPerformance }        from '@/services/focusService'
+import { formatDuration, formatDistractionBreakdown } from '@/lib/sessionPerformance'
 import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin'
-
-function formatMins(seconds) {
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  if (h > 0) return `${h}h ${m % 60}m`
-  return `${m} mins`
-}
 
 export async function POST(req) {
   try {
     const { studentId, sessionId } = await req.json()
 
-    const [studentName, data] = await Promise.all([
+    const [studentName, data, sessionPerformance] = await Promise.all([
       getStudentName(studentId),
       collectReportData(studentId, sessionId),
+      sessionId ? getSessionPerformance(sessionId) : Promise.resolve(null),
     ])
 
     const {
@@ -45,9 +41,10 @@ export async function POST(req) {
 
     const sessionList = timerHistory
       .slice(0, 5)
-      .map(s => `${s.tasks?.taskName ?? 'Unknown'} (${formatMins(s.total_seconds ?? 0)})`)
+      .map(s => `${s.tasks?.taskName ?? 'Unknown'} (${formatDuration(s.total_seconds ?? 0)})`)
       .join(', ') || 'none'
 
+<<<<<<< Updated upstream
     const distractionDetails = Object.entries(distractionBreakdown)
       .map(([reason, secs]) => {
         const label = {
@@ -59,6 +56,14 @@ export async function POST(req) {
         }[reason] ?? reason
         return `${label} for ${formatMins(secs)}`
       }).join(', ') || 'none'
+=======
+    const breakdown = sessionPerformance?.distractionBreakdown ?? distractionBreakdown
+    const distractedSeconds = sessionPerformance?.totalDistractedSeconds ?? totalDistracted
+    const studySeconds = sessionPerformance?.studySeconds ?? totalStudyTime
+    const focusScore = sessionPerformance?.focusScore ?? 100
+
+    const distractionDetails = formatDistractionBreakdown(breakdown)
+>>>>>>> Stashed changes
 
     const stuckDetails = stuckPages
       .map(p => `question ${p.page_number} — ${p.ai_diagnosis ?? 'struggled with content'}`)
@@ -66,26 +71,28 @@ export async function POST(req) {
 
     const teacherNotified = stuckPages.length > 0 ? 'yes' : 'no'
 
-    // Ask 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 400,
+        max_tokens: 500,
         messages: [{
           role: 'user',
           content: `Write a short warm professional end-of-day progress note for a parent about their child.
-Write in third person, 4-5 sentences, plain paragraph, no bullet points, no markdown.
-Include both the study session summary AND the document review findings.
+Write in third person, 5-6 sentences, plain paragraph, no bullet points, no markdown.
+You MUST include a dedicated focus-session performance summary: total study time, focus score, whether distractions occurred, and name each distraction type in plain language (for example: not looking at the camera, away from desk, phone detected, not reading or writing, talking, off-task screen).
+If there were no distractions, say the student stayed focused.
+Also include document review findings.
 If any document was flagged as incorrect or incomplete, mention specifically which part of the work needs improvement.
 
 Student: ${studentName}
-Total focus time: ${formatMins(totalStudyTime)}
+Study session time: ${formatDuration(studySeconds)}
+Focus score: ${focusScore}%
+Total distracted time: ${formatDuration(distractedSeconds)}
+Distraction breakdown: ${distractionDetails}
 Sessions today: ${sessionList}
 Tasks completed: ${completedTasks}
-Total distracted: ${formatMins(totalDistracted)}
-Distraction reasons: ${distractionDetails}
 Stuck pages: ${stuckDetails}
 Teacher notified: ${teacherNotified}
 Document reviews: ${documentReviews}`,
@@ -94,11 +101,11 @@ Document reviews: ${documentReviews}`,
     })
 
     const aiData    = await response.json()
-    const narrative = aiData.content[0].text.trim()
+    const narrative = aiData.content?.[0]?.text?.trim() ?? sessionPerformance?.narrative ?? 'Report unavailable.'
 
     const report = await saveReport({ studentId, narrative })
 
-    return Response.json({ report })
+    return Response.json({ report, sessionPerformance })
 
   } catch (error) {
     console.error('Report generation error:', error)
