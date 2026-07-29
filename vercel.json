@@ -1,5 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "npm install --prefix study-tracker",
-  "buildCommand": "npm run build --prefix study-tracker"
+  "installCommand": "if [ -f study-tracker/package.json ]; then npm install --prefix study-tracker; else npm install; fi",
+  "buildCommand": "if [ -f study-tracker/package.json ]; then npm run build --prefix study-tracker; else npm run build; fi"
 }
