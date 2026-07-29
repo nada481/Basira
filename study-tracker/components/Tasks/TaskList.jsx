@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, AlertCircle, PlayCircle, FileText } from 'lucide-react'
+import { documentFileHref } from '@/lib/storage'
 
 const SUBJECT_COLORS = {
   history:          { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200' },
@@ -59,7 +60,7 @@ export default function TaskCard({ task }) {
             )}
             {attachmentUrl && (
               <a
-                href={attachmentUrl}
+                href={documentFileHref(attachmentUrl)}
                 target="_blank"
                 rel="noopener noreferrer"
                 title="Open assignment document"

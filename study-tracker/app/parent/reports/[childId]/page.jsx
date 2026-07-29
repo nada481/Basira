@@ -10,6 +10,7 @@ import {
 import ParentSidebar from '@/components/shared/ParentSidebar'
 import NoteModal from '@/components/NoteModal'
 import { formatDuration, getDistractionLabel } from '@/lib/sessionPerformance'
+import { documentFileHref } from '@/lib/storage'
 
 const FILTERS = ['All', 'This Week', 'This Month']
 const DEMO_PARENT_ID='bbbbbbbb-0000-0000-0000-000000000001'
@@ -185,7 +186,7 @@ export default function ProgressPage({ params }) {
                   )}
                   {doc.file_url && (
                     <a
-                      href={doc.file_url}
+                      href={documentFileHref(doc.file_url)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-[#8B1A4A] transition-colors"

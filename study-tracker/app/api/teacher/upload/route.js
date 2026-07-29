@@ -1,6 +1,5 @@
 import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin'
-
-const BUCKET_NAME = 'documents'
+import { uploadDocumentFile } from '@/lib/storage'
 
 export async function POST(req) {
   try {
@@ -33,14 +32,13 @@ export async function POST(req) {
     const path = `teacher/${teacherId}/${classId}/${Date.now()}.${ext}`
     const buffer = Buffer.from(await file.arrayBuffer())
 
-    const { error: uploadError } = await supabase.storage
-      .from(BUCKET_NAME)
-      .upload(path, buffer, { contentType: file.type })
+    const fileUrl = await uploadDocumentFile(supabase, {
+      path,
+      buffer,
+      contentType: file.type || 'application/octet-stream',
+    })
 
-    if (uploadError) throw new Error(uploadError.message)
-
-    const { data: urlData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(path)
-    return Response.json({ fileUrl: urlData.publicUrl })
+    return Response.json({ fileUrl })
   } catch (error) {
     console.error('Teacher upload error:', error)
     return Response.json(

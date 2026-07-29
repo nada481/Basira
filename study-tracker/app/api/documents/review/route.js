@@ -2,23 +2,16 @@ import { getDocument, saveDocumentReview, saveSessionPerformance } from '@/servi
 import { notifyTeacher } from '@/services/teacherNotificationService'
 import { getSessionPerformance } from '@/services/focusService'
 import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin'
+import { parseStoragePublicUrl } from '@/lib/storage'
 import mammoth from 'mammoth'
 
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
-// Extract { bucket, path } from a Supabase Storage public URL
-function parseStorageUrl(fileUrl) {
-  const match = fileUrl.match(/\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/)
-  if (!match) throw new Error('Could not parse storage path from file_url')
-  return { bucket: match[1], path: decodeURIComponent(match[2]) }
-}
-
-// Fetch the file and return either { kind: 'inline', base64, mimeType } for images/PDF
-// or { kind: 'text', text } for docx (Gemini's inline_data doesn't accept Word docs)
 async function fetchFileForReview(fileUrl) {
-  const { bucket, path } = parseStorageUrl(fileUrl)
+  const parsed = parseStoragePublicUrl(fileUrl)
+  if (!parsed) throw new Error('Could not parse storage path from file_url')
 
-  const { data: blob, error } = await supabase.storage.from(bucket).download(path)
+  const { data: blob, error } = await supabase.storage.from(parsed.bucket).download(parsed.path)
   if (error) throw new Error(`Could not fetch document file: ${error.message}`)
 
   const mimeType = blob.type || 'application/octet-stream'

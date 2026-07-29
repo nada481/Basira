@@ -2,10 +2,8 @@
 
 import { useState, useRef } from 'react'
 import { X, Upload, FileText, Image, File, CheckCircle, Loader2 } from 'lucide-react'
-import { getSupabase } from '@/lib/supabase'
 
 const STUDENT_ID  = 'cccccccc-0000-0000-0000-000000000001'
-const BUCKET_NAME = 'documents'
 
 const ACCEPTED_TYPES = {
   'image/jpeg':                          { label: 'JPG Image',   icon: Image },
@@ -52,26 +50,20 @@ export default function CompleteSessionModal({ open, onClose, onConfirm, session
     setError(null)
 
     try {
-      const supabase = getSupabase()
-      if (!supabase) throw new Error('App is missing Supabase configuration')
+      const formData = new FormData()
+      formData.append('file', file)
 
-      // 1. Upload file to Supabase Storage
-      const ext      = file.name.split('.').pop()
-      const path     = `${STUDENT_ID}/${Date.now()}.${ext}`
-      const { error: uploadError } = await supabase.storage
-        .from(BUCKET_NAME)
-        .upload(path, file, { contentType: file.type })
+      const uploadRes = await fetch('/api/documents/upload', {
+        method: 'POST',
+        headers: { 'x-user-id': STUDENT_ID },
+        body: formData,
+      })
+      const uploadData = await uploadRes.json()
+      if (!uploadRes.ok) throw new Error(uploadData.error ?? 'Upload failed')
 
-      if (uploadError) throw new Error(uploadError.message)
+      const fileUrl = uploadData.fileUrl
 
-      // 2. Get public URL
-      const { data: urlData } = supabase.storage
-        .from(BUCKET_NAME)
-        .getPublicUrl(path)
-
-      const fileUrl = urlData.publicUrl
-
-      // 3. Create document record in DB
+      // Create document record in DB
       const createRes = await fetch('/api/documents/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-id': STUDENT_ID },
