@@ -1,9 +1,10 @@
 'use client'
 
 import { useSearchParams } from 'next/navigation'
-import { useState, useEffect, useRef, Suspense } from 'react'
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import {
   Video, Monitor, Play, Pause, Settings, Plus, Eye, EyeOff, X,
+  Camera, SwitchCamera,
 } from 'lucide-react'
 import FocusCamera from '@/components/session/FocusCamera'
 import CompleteSessionModal from '@/components/session/CompleteSessionModal'
@@ -15,29 +16,33 @@ function StudyPageContent() {
   const searchParams = useSearchParams()
   const taskId       = searchParams.get('taskId')
 
-  // Task info
   const [task, setTask]         = useState(null)
-
-  // Goals — user-editable list
   const [goals, setGoals]       = useState([])
   const [newGoal, setNewGoal]   = useState('')
 
-  // Session state
   const [sessionActive, setSessionActive]   = useState(false)
   const [elapsed, setElapsed]               = useState(0)
   const [isPaused, setIsPaused]             = useState(false)
-  const [timerVisible, setTimerVisible]     = useState(true)
+  const [timerVisible, setTimerVisible]     = useState(false)
   const [menuOpen, setMenuOpen]             = useState(false)
   const [profileName, setProfileName]       = useState('Student')
   const [isSharing, setIsSharing]           = useState(false)
   const [shareError, setShareError]         = useState(null)
   const [showCompleteModal, setShowCompleteModal] = useState(false)
   const [currentSessionId, setCurrentSessionId]   = useState(null)
+  const [cameraFacing, setCameraFacing]     = useState('user')
+  const [inactivityNotice, setInactivityNotice] = useState(false)
 
   const timerRef        = useRef(null)
   const videoRef        = useRef(null)
   const screenVideoRef  = useRef(null)
   const screenStreamRef = useRef(null)
+
+  const handleInactivity = useCallback(() => {
+    setIsPaused(true)
+    setInactivityNotice(true)
+    setTimeout(() => setInactivityNotice(false), 5000)
+  }, [])
 
   useEffect(() => {
     fetch('/api/profile', { headers: { 'x-user-id': STUDENT_ID } })
@@ -49,7 +54,6 @@ function StudyPageContent() {
       .catch(() => {})
   }, [])
 
-  // Load task if taskId is in URL
   useEffect(() => {
     if (!taskId) return
     async function loadTask() {
@@ -60,7 +64,6 @@ function StudyPageContent() {
         const data = await res.json()
         if (data.task) {
           setTask(data.task)
-          // Pre-populate goals from task note if available
           if (data.task.note) {
             setGoals([{ id: Date.now(), label: data.task.note, done: false }])
           }
@@ -72,7 +75,6 @@ function StudyPageContent() {
     loadTask()
   }, [taskId])
 
-  // Timer counts UP (elapsed time)
   useEffect(() => {
     if (sessionActive && !isPaused) {
       timerRef.current = setInterval(() => {
@@ -88,6 +90,7 @@ function StudyPageContent() {
     setElapsed(0)
     setSessionActive(true)
     setIsPaused(false)
+    setInactivityNotice(false)
     setCurrentSessionId('eeeeeeee-0000-0000-0000-000000000001')
   }
 
@@ -111,7 +114,6 @@ function StudyPageContent() {
     stopScreenShare()
   }
 
-  // Goals
   const toggleGoal = (id) => setGoals(prev => prev.map(g => g.id === id ? { ...g, done: !g.done } : g))
   const removeGoal = (id) => setGoals(prev => prev.filter(g => g.id !== id))
   const addGoal = () => {
@@ -167,6 +169,10 @@ function StudyPageContent() {
     setIsSharing(false)
   }
 
+  const toggleCameraFacing = () => {
+    setCameraFacing(f => (f === 'user' ? 'environment' : 'user'))
+  }
+
   return (
     <main className="min-h-screen bg-white">
 
@@ -179,44 +185,50 @@ function StudyPageContent() {
       />
 
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-        <div className="flex items-center gap-3">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 sm:px-6 py-4 border-b border-gray-100">
+        <div className="flex items-center gap-3 min-w-0">
           <MenuButton onClick={() => setMenuOpen(true)} />
-          <div>
-            <h1 className="text-xl font-semibold text-[#8B1A4A]">
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-semibold text-[#8B1A4A] truncate">
               {task ? task.taskName : 'Study Session'}
             </h1>
             {task?.subject && (
-              <p className="text-xs text-gray-400">{task.subject}</p>
+              <p className="text-xs text-gray-400 truncate">{task.subject}</p>
             )}
           </div>
           {sessionActive && (
-            <span className="flex items-center gap-1 text-xs font-medium text-[#8B1A4A] bg-pink-100 px-2 py-1 rounded-full">
+            <span className="hidden sm:flex shrink-0 items-center gap-1 text-xs font-medium text-[#8B1A4A] bg-pink-100 px-2 py-1 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-[#8B1A4A] animate-pulse" />
-              FOCUS SESSION ACTIVE
+              ACTIVE
             </span>
           )}
         </div>
         <button
           onClick={startSession}
           disabled={sessionActive}
-          className="bg-[#8B1A4A] hover:bg-[#C4526A] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors"
+          className="w-full sm:w-auto bg-[#8B1A4A] hover:bg-[#C4526A] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
         >
           Start New
         </button>
       </header>
 
-      <div className="px-8 py-6 grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+      {inactivityNotice && (
+        <div className="mx-4 sm:mx-6 mt-3 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-center">
+          No movement detected for 10 seconds — timer paused. Press play to resume.
+        </div>
+      )}
 
-        {/* Camera — fills full width of left column, square */}
-        <div className="w-full aspect-square rounded-2xl overflow-hidden bg-gray-100 relative">
+      <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 items-start">
+
+        {/* Camera area */}
+        <div className="w-full aspect-video sm:aspect-[4/3] lg:aspect-square max-h-[70vh] lg:max-h-none rounded-2xl overflow-hidden bg-gray-100 relative">
           {sessionActive && isSharing && (
             <video
               ref={screenVideoRef}
               autoPlay
               muted
               playsInline
-              className="w-full h-full object-contain bg-gray-100"
+              className="w-full h-full object-contain bg-gray-900"
             />
           )}
           {sessionActive && (
@@ -227,21 +239,58 @@ function StudyPageContent() {
               playsInline
               className={
                 isSharing
-                  ? 'absolute bottom-3 right-3 z-10 w-24 rounded-xl border-2 border-white shadow-lg object-cover'
+                  ? 'absolute bottom-2 right-2 sm:bottom-3 sm:right-3 z-10 w-[28%] min-w-[72px] max-w-[120px] rounded-lg sm:rounded-xl border-2 border-white shadow-lg object-cover aspect-[4/3]'
                   : 'w-full h-full object-cover'
               }
-              style={isSharing ? { aspectRatio: '4/3' } : undefined}
             />
           )}
           {!sessionActive && (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-gray-400">
-              <span className="text-3xl">📷</span>
+            <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-gray-400 px-4 text-center">
+              <Camera className="w-10 h-10 sm:w-12 sm:h-12 opacity-40" />
               <span className="text-sm">Camera will start when session begins</span>
             </div>
           )}
+
+          {sessionActive && (
+            <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20 flex flex-col gap-1.5">
+              <div className="flex rounded-lg bg-white/95 shadow-sm border border-gray-100 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setCameraFacing('user')}
+                  className={`px-2.5 py-1.5 text-[11px] sm:text-xs font-semibold rounded-md transition-colors ${
+                    cameraFacing === 'user'
+                      ? 'bg-[#8B1A4A] text-white'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Front
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCameraFacing('environment')}
+                  className={`px-2.5 py-1.5 text-[11px] sm:text-xs font-semibold rounded-md transition-colors ${
+                    cameraFacing === 'environment'
+                      ? 'bg-[#8B1A4A] text-white'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Back
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={toggleCameraFacing}
+                className="self-end p-2 rounded-lg bg-white/95 shadow-sm border border-gray-100 text-gray-600 hover:text-[#8B1A4A] transition-colors"
+                title="Switch camera"
+              >
+                <SwitchCamera className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           {isSharing && (
-            <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-white/90 text-gray-800 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /> Sharing Screen
+            <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex items-center gap-1.5 bg-white/90 text-gray-800 text-[10px] sm:text-xs font-semibold px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /> Sharing
             </div>
           )}
         </div>
@@ -250,15 +299,16 @@ function StudyPageContent() {
           <p className="text-xs text-red-500 text-center lg:col-span-2 -mt-2">{shareError}</p>
         )}
 
-        <div className="flex flex-col gap-5 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+        <div className="flex flex-col gap-4 sm:gap-5 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+
         {/* Session Goals */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+        <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-gray-800">Session Goals</h2>
             <span className="text-sm text-gray-400">{remaining} Remaining</span>
           </div>
 
-          <div className="flex flex-col gap-2 mb-3">
+          <div className="flex flex-col gap-2 mb-3 max-h-[40vh] lg:max-h-none overflow-y-auto">
             {goals.map(goal => (
               <div key={goal.id} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 group">
                 <input
@@ -267,12 +317,12 @@ function StudyPageContent() {
                   onChange={() => toggleGoal(goal.id)}
                   className="w-4 h-4 accent-[#8B1A4A] cursor-pointer flex-shrink-0"
                 />
-                <span className={`text-sm flex-1 ${goal.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                <span className={`text-sm flex-1 break-words ${goal.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>
                   {goal.label}
                 </span>
                 <button
                   onClick={() => removeGoal(goal.id)}
-                  className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-opacity"
+                  className="sm:opacity-0 sm:group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-opacity flex-shrink-0"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -284,7 +334,6 @@ function StudyPageContent() {
             )}
           </div>
 
-          {/* Add goal input */}
           <div className="flex gap-2">
             <input
               type="text"
@@ -292,12 +341,12 @@ function StudyPageContent() {
               onChange={e => setNewGoal(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && addGoal()}
               placeholder="Add a goal for this session..."
-              className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#8B1A4A]/20"
+              className="flex-1 min-w-0 text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#8B1A4A]/20"
             />
             <button
               onClick={addGoal}
               disabled={!newGoal.trim()}
-              className="p-2 bg-[#8B1A4A] hover:bg-[#a32258] disabled:opacity-40 text-white rounded-xl transition-colors"
+              className="p-2 bg-[#8B1A4A] hover:bg-[#a32258] disabled:opacity-40 text-white rounded-xl transition-colors flex-shrink-0"
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -305,19 +354,18 @@ function StudyPageContent() {
         </div>
 
         {/* Timer controls */}
-        <div className="bg-white border border-gray-200 rounded-2xl px-5 py-4 shadow-sm flex items-center justify-between gap-3">
+        <div className="bg-white border border-gray-200 rounded-2xl px-4 sm:px-5 py-4 shadow-sm flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
 
-          {/* Timer display with hide toggle */}
           <div className="flex items-center gap-3">
             {timerVisible ? (
               <div className="flex flex-col leading-tight">
-                <span className="text-3xl font-bold text-[#8B1A4A] font-mono">{formatTime(elapsed)}</span>
+                <span className="text-2xl sm:text-3xl font-bold text-[#8B1A4A] font-mono tabular-nums">{formatTime(elapsed)}</span>
                 <span className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Elapsed Time</span>
               </div>
             ) : (
               <div className="flex flex-col leading-tight">
-                <span className="text-3xl font-bold text-gray-200 font-mono">••:••</span>
-                <span className="text-[10px] font-semibold tracking-widest text-gray-300 uppercase">Hidden</span>
+                <span className="text-xs sm:text-sm font-medium text-gray-400">Timer hidden</span>
+                <span className="text-[10px] text-gray-300">Tap the eye to show</span>
               </div>
             )}
             <button
@@ -329,39 +377,45 @@ function StudyPageContent() {
             </button>
           </div>
 
-          <div className="flex items-center gap-2 text-gray-400">
-            <button disabled={!sessionActive} className={`p-2 rounded-lg transition-colors ${sessionActive ? 'hover:bg-gray-100 text-gray-500' : 'opacity-30 cursor-not-allowed'}`}>
-              <Video className="w-5 h-5" />
-            </button>
+          <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5 sm:gap-2 text-gray-400">
+              <button
+                disabled={!sessionActive}
+                className={`p-2 rounded-lg transition-colors ${sessionActive ? 'hover:bg-gray-100 text-gray-500' : 'opacity-30 cursor-not-allowed'}`}
+                title={`Camera: ${cameraFacing === 'user' ? 'Front' : 'Back'}`}
+              >
+                <Video className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => isSharing ? stopScreenShare() : startScreenShare()}
+                disabled={!sessionActive}
+                className={`p-2 rounded-lg transition-colors ${isSharing ? 'bg-red-50 text-red-500 hover:bg-red-100' : sessionActive ? 'hover:bg-gray-100 text-gray-500' : 'opacity-30 cursor-not-allowed'}`}
+              >
+                <Monitor className="w-5 h-5" />
+              </button>
+            </div>
+
             <button
-              onClick={() => isSharing ? stopScreenShare() : startScreenShare()}
+              onClick={() => setIsPaused(p => !p)}
               disabled={!sessionActive}
-              className={`p-2 rounded-lg transition-colors ${isSharing ? 'bg-red-50 text-red-500 hover:bg-red-100' : sessionActive ? 'hover:bg-gray-100 text-gray-500' : 'opacity-30 cursor-not-allowed'}`}
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-[#8B1A4A] hover:bg-[#C4526A] disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors flex-shrink-0"
             >
-              <Monitor className="w-5 h-5" />
+              {isPaused ? <Play className="w-4 h-4 ml-0.5" /> : <Pause className="w-4 h-4" />}
+            </button>
+
+            <button
+              onClick={completeSession}
+              disabled={!sessionActive}
+              className="flex items-center gap-2 bg-[#8B1A4A] hover:bg-[#C4526A] disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold tracking-wide px-3 sm:px-4 py-2.5 rounded-xl transition-colors"
+            >
+              <Settings className="w-4 h-4" />
+              <span className="hidden sm:inline">COMPLETE</span>
+              <span className="sm:hidden">DONE</span>
             </button>
           </div>
-
-          <button
-            onClick={() => setIsPaused(p => !p)}
-            disabled={!sessionActive}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-[#8B1A4A] hover:bg-[#C4526A] disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors"
-          >
-            {isPaused ? <Play className="w-4 h-4 ml-0.5" /> : <Pause className="w-4 h-4" />}
-          </button>
-
-          <button
-            onClick={completeSession}
-            disabled={!sessionActive}
-            className="flex items-center gap-2 bg-[#8B1A4A] hover:bg-[#C4526A] disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold tracking-wide px-4 py-2.5 rounded-xl transition-colors"
-          >
-            <Settings className="w-4 h-4" />
-            COMPLETE SESSION
-          </button>
         </div>
 
         </div>
-
       </div>
 
       {sessionActive && (
@@ -371,6 +425,8 @@ function StudyPageContent() {
           sessionId={currentSessionId}
           userId={STUDENT_ID}
           enabled={!isPaused}
+          facingMode={cameraFacing}
+          onInactivity={handleInactivity}
           estimatedSecondsPerQuestion={3 * 60}
         />
       )}

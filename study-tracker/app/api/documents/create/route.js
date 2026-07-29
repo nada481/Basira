@@ -63,6 +63,7 @@ export async function POST(req) {
           phone_detected:  'phone detected',
           no_body:         'away from desk',
           not_writing:     'not facing the device or book',
+          not_looking:     'not looking at the camera',
           talking:         'talking',
           off_task_screen: 'off-task screen activity',
         }[reason] ?? reason

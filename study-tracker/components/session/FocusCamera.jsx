@@ -11,6 +11,7 @@ const REASON_LABELS = {
   phone_detected:  'Phone detected',
   no_body:         'Not at desk',
   not_writing:     'Not reading or writing',
+  not_looking:     'Not looking at the camera',
   talking:         'Talking detected',
   off_task_screen: 'Screen looks off-task',
 }
@@ -21,6 +22,8 @@ export default function FocusCamera({
   sessionId,
   userId = DEMO_STUDENT_ID,
   enabled = true,
+  facingMode = 'user',
+  onInactivity,
   estimatedSecondsPerQuestion = DEFAULT_ESTIMATED_SECONDS,
 }) {
   const screenCanvasRef = useRef(null)
@@ -36,6 +39,8 @@ export default function FocusCamera({
     userId,
     enabled,
     videoRef,
+    facingMode,
+    onInactivity,
   })
 
   async function logQuestionTime(questionNumber, timeSpentSeconds) {
@@ -184,10 +189,10 @@ export default function FocusCamera({
       )}
 
       {distractReason && countdown !== null && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-yellow-50 border border-yellow-300 text-yellow-800 text-sm font-medium px-5 py-3 rounded-2xl shadow-lg animate-bounce">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-wrap items-center justify-center gap-2 sm:gap-3 max-w-[calc(100vw-2rem)] bg-yellow-50 border border-yellow-300 text-yellow-800 text-xs sm:text-sm font-medium px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl shadow-lg animate-bounce">
           <span>⚠️</span>
-          <span>{REASON_LABELS[distractReason] ?? 'Stay focused!'}</span>
-          <span className="ml-2 bg-yellow-200 text-yellow-900 font-bold px-2 py-0.5 rounded-full text-xs">
+          <span className="text-center">{REASON_LABELS[distractReason] ?? 'Stay focused!'}</span>
+          <span className="bg-yellow-200 text-yellow-900 font-bold px-2 py-0.5 rounded-full text-xs">
             {countdown}s
           </span>
         </div>
