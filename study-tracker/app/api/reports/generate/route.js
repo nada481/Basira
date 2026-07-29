@@ -44,26 +44,12 @@ export async function POST(req) {
       .map(s => `${s.tasks?.taskName ?? 'Unknown'} (${formatDuration(s.total_seconds ?? 0)})`)
       .join(', ') || 'none'
 
-<<<<<<< Updated upstream
-    const distractionDetails = Object.entries(distractionBreakdown)
-      .map(([reason, secs]) => {
-        const label = {
-          phone_detected:  'phone detected',
-          no_body:         'away from desk',
-          not_writing:     'not facing the device or book',
-          talking:         'talking',
-          off_task_screen: 'off-task screen activity',
-        }[reason] ?? reason
-        return `${label} for ${formatMins(secs)}`
-      }).join(', ') || 'none'
-=======
     const breakdown = sessionPerformance?.distractionBreakdown ?? distractionBreakdown
     const distractedSeconds = sessionPerformance?.totalDistractedSeconds ?? totalDistracted
     const studySeconds = sessionPerformance?.studySeconds ?? totalStudyTime
     const focusScore = sessionPerformance?.focusScore ?? 100
 
     const distractionDetails = formatDistractionBreakdown(breakdown)
->>>>>>> Stashed changes
 
     const stuckDetails = stuckPages
       .map(p => `question ${p.page_number} — ${p.ai_diagnosis ?? 'struggled with content'}`)
