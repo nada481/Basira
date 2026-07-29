@@ -16,6 +16,21 @@ const CONFIRM_TICKS = 2
 const STILL_HAND_THRESHOLD_MS = 7 * 60 * 1000
 const HAND_MOVE_EPSILON = 0.015
 
+/** play() can reject with AbortError if srcObject or the element changes mid-call. */
+async function safePlay(video) {
+  try {
+    await video.play()
+  } catch (err) {
+    if (err?.name !== 'AbortError') throw err
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    try {
+      await video.play()
+    } catch (retryErr) {
+      if (retryErr?.name !== 'AbortError') throw retryErr
+    }
+  }
+}
+
 export function useFocusMonitor({ sessionId, userId, enabled, videoRef }) {
   const internalVideoRef = useRef(null)
   const streamRef = useRef(null)
@@ -102,9 +117,9 @@ export function useFocusMonitor({ sessionId, userId, enabled, videoRef }) {
       audio: false,
     })
     streamRef.current = stream
-    video.srcObject = stream
     video.muted = true
-    await video.play()
+    video.srcObject = stream
+    await safePlay(video)
   }, [getVideoEl])
 
   const classifyTick = useCallback(() => {

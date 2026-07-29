@@ -131,18 +131,34 @@ function StudyPageContent() {
 
   const remaining = goals.filter(g => !g.done).length
 
+  async function attachScreenStream(stream) {
+    const video = screenVideoRef.current
+    if (!video) return
+    video.srcObject = stream
+    try {
+      await video.play()
+    } catch (err) {
+      if (err?.name !== 'AbortError') throw err
+    }
+  }
+
   async function startScreenShare() {
     setShareError(null)
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
       screenStreamRef.current = stream
-      if (screenVideoRef.current) screenVideoRef.current.srcObject = stream
       setIsSharing(true)
+      await attachScreenStream(stream)
       stream.getVideoTracks()[0].addEventListener('ended', stopScreenShare)
     } catch (err) {
       if (err.name !== 'NotAllowedError') setShareError('Screen sharing failed. Please try again.')
     }
   }
+
+  useEffect(() => {
+    if (!isSharing || !screenStreamRef.current) return
+    attachScreenStream(screenStreamRef.current).catch(() => {})
+  }, [isSharing])
 
   function stopScreenShare() {
     screenStreamRef.current?.getTracks().forEach(t => t.stop())
@@ -194,9 +210,30 @@ function StudyPageContent() {
 
         {/* Camera — fills full width of left column, square */}
         <div className="w-full aspect-square rounded-2xl overflow-hidden bg-gray-100 relative">
-          {isSharing && <video ref={screenVideoRef} autoPlay muted className="w-full h-full object-contain bg-gray-100" />}
-          {sessionActive && !isSharing && <video ref={videoRef} autoPlay muted className="w-full h-full object-cover" />}
-          {!sessionActive && !isSharing && (
+          {sessionActive && isSharing && (
+            <video
+              ref={screenVideoRef}
+              autoPlay
+              muted
+              playsInline
+              className="w-full h-full object-contain bg-gray-100"
+            />
+          )}
+          {sessionActive && (
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              className={
+                isSharing
+                  ? 'absolute bottom-3 right-3 z-10 w-24 rounded-xl border-2 border-white shadow-lg object-cover'
+                  : 'w-full h-full object-cover'
+              }
+              style={isSharing ? { aspectRatio: '4/3' } : undefined}
+            />
+          )}
+          {!sessionActive && (
             <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-gray-400">
               <span className="text-3xl">📷</span>
               <span className="text-sm">Camera will start when session begins</span>
@@ -206,9 +243,6 @@ function StudyPageContent() {
             <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-white/90 text-gray-800 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm">
               <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /> Sharing Screen
             </div>
-          )}
-          {isSharing && sessionActive && (
-            <video ref={videoRef} autoPlay muted className="absolute bottom-3 right-3 w-24 rounded-xl border-2 border-white shadow-lg object-cover" style={{ aspectRatio: '4/3' }} />
           )}
         </div>
 
