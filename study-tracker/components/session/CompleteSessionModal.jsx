@@ -12,7 +12,15 @@ const ACCEPTED_TYPES = {
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': { label: 'Word Doc', icon: File },
 }
 
-export default function CompleteSessionModal({ open, onClose, onConfirm, sessionId }) {
+export default function CompleteSessionModal({
+  open,
+  onClose,
+  onConfirm,
+  sessionId,
+  taskId,
+  elapsed,
+  onStopTimer,
+}) {
   const [file, setFile]         = useState(null)
   const [step, setStep]         = useState('upload') // upload | reviewing | done
   const [error, setError]       = useState(null)
@@ -63,34 +71,47 @@ export default function CompleteSessionModal({ open, onClose, onConfirm, session
 
       const fileUrl = uploadData.fileUrl
 
-      // Create document record in DB
       const createRes = await fetch('/api/documents/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-id': STUDENT_ID },
         body: JSON.stringify({ sessionId, fileUrl }),
       })
       const createData = await createRes.json()
-      if (!createRes.ok) throw new Error(createData.error ?? 'Failed to save document')
+      if (!createRes.ok) throw new Error(createData.error ?? createData.details ?? 'Failed to save document')
 
       const documentId = createData.documentId
+      await onStopTimer?.()
 
-      //Trigger Gemini review
-      const reviewRes = await fetch('/api/documents/review', {   // ← was '/api/documents'
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ documentId }),
-      })
-      const reviewData = await reviewRes.json()
-      if (!reviewRes.ok) throw new Error(reviewData.error ?? 'Review failed')
+      if (taskId) {
+        await fetch(`/api/tasks/${taskId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'x-user-id': STUDENT_ID },
+          body: JSON.stringify({ completeTask: true }),
+        }).catch((err) => console.error('Failed to mark task complete:', err))
+      }
 
-      //Generate end-of-day report
+      let reviewFeedback = null
+      try {
+        const reviewRes = await fetch('/api/documents/review', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ documentId }),
+        })
+        const reviewData = await reviewRes.json()
+        if (!reviewRes.ok) throw new Error(reviewData.error ?? 'Review failed')
+        reviewFeedback = reviewData.document?.ai_feedback ?? null
+      } catch (reviewErr) {
+        console.error('Document review failed after save:', reviewErr)
+        reviewFeedback = 'Your work was saved successfully. AI feedback will be added soon.'
+      }
+
       await fetch('/api/reports/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ studentId: STUDENT_ID, sessionId }),
-      })
+      }).catch((err) => console.error('Report generation failed:', err))
 
-      setFeedback(reviewData.document?.ai_feedback ?? null)   // ← was reviewData.feedback
+      setFeedback(reviewFeedback)
       setStep('done')
     } catch (err) {
       console.error(err)

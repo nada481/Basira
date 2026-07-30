@@ -43,7 +43,7 @@ export async function createTask({ userID, taskName, subject, type, note, classI
 
 export async function updateTask(taskId, updates) {
   // whitelist so callers can't overwrite arbitrary columns
-  const allowed = ['taskName', 'subject', 'type', 'note', 'class_id', 'estimated_minutes', 'due_date', 'status']
+  const allowed = ['taskName', 'subject', 'type', 'note', 'class_id', 'estimated_minutes', 'due_date', 'status', 'completeTask']
   const payload = {}
   for (const key of allowed) {
     if (key in updates) payload[key] = updates[key]

@@ -86,12 +86,43 @@ function StudyPageContent() {
     return () => clearInterval(timerRef.current)
   }, [sessionActive, isPaused])
 
-  const startSession = () => {
+  const startSession = async () => {
     setElapsed(0)
-    setSessionActive(true)
     setIsPaused(false)
     setInactivityNotice(false)
-    setCurrentSessionId('eeeeeeee-0000-0000-0000-000000000001')
+
+    let sessionId = null
+    try {
+      const res = await fetch('/api/timer?action=start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-id': STUDENT_ID },
+        body: JSON.stringify({ taskId: taskId || undefined }),
+      })
+      const data = await res.json()
+      if (res.ok && data.timer?.id) {
+        sessionId = data.timer.id
+      } else {
+        console.error('Timer start failed:', data.error)
+      }
+    } catch (err) {
+      console.error('Timer start failed:', err)
+    }
+
+    setCurrentSessionId(sessionId)
+    setSessionActive(true)
+  }
+
+  const stopSessionTimer = async () => {
+    if (!currentSessionId) return
+    try {
+      await fetch('/api/timer?action=stop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-id': STUDENT_ID },
+        body: JSON.stringify({ timerId: currentSessionId, totalSeconds: elapsed }),
+      })
+    } catch (err) {
+      console.error('Timer stop failed:', err)
+    }
   }
 
   const completeSession = () => {
@@ -434,6 +465,9 @@ function StudyPageContent() {
       <CompleteSessionModal
         open={showCompleteModal}
         sessionId={currentSessionId}
+        taskId={taskId}
+        elapsed={elapsed}
+        onStopTimer={stopSessionTimer}
         onClose={onSessionSkipped}
         onConfirm={onSessionConfirmed}
       />

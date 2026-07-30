@@ -4,7 +4,7 @@ export async function startTimer({ userId, taskId }) {
     .from('timer')
     .insert({
       userID:     userId,
-      task_id:    taskId,
+      task_id:    taskId ?? null,
       start_time: new Date().toISOString(),
     })
     .select()

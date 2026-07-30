@@ -154,7 +154,7 @@ export async function createDocument(studentId, sessionId, fileUrl) {
       ai_details: null,
     })
     .select()
-    .maybeSingle()
+    .single()
 
   if (error) throw new Error(error.message)
   return data
