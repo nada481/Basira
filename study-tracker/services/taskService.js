@@ -60,13 +60,18 @@ export async function updateTask(taskId, updates) {
   return data
 }
 
-export async function completeTask(taskId) {
-  const { error } = await supabase
+export async function completeTask(taskId, studentId) {
+  const query = supabase
     .from('tasks')
-    .update({ status: 'complete' })
+    .update({ completeTask: true })
     .eq('id', taskId)
 
+  if (studentId) query.eq('userID', studentId)
+
+  const { data, error } = await query.select().maybeSingle()
+
   if (error) throw new Error(error.message)
+  return data
 }
 
 export async function markTaskOvertime(taskId) {

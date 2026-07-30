@@ -6,8 +6,9 @@ export async function PATCH(req, { params }) {
     const studentId = req.headers.get('x-user-id')
     if (!studentId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
+    const { id } = await params
     const updates = await req.json()
-    const task = await updateTask(params.id, updates)
+    const task = await updateTask(id, updates)
     return Response.json({ task })
 
   } catch (error) {

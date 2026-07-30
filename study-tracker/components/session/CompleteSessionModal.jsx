@@ -74,21 +74,13 @@ export default function CompleteSessionModal({
       const createRes = await fetch('/api/documents/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-id': STUDENT_ID },
-        body: JSON.stringify({ sessionId, fileUrl }),
+        body: JSON.stringify({ sessionId, fileUrl, taskId }),
       })
       const createData = await createRes.json()
       if (!createRes.ok) throw new Error(createData.error ?? createData.details ?? 'Failed to save document')
 
       const documentId = createData.documentId
       await onStopTimer?.()
-
-      if (taskId) {
-        await fetch(`/api/tasks/${taskId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', 'x-user-id': STUDENT_ID },
-          body: JSON.stringify({ completeTask: true }),
-        }).catch((err) => console.error('Failed to mark task complete:', err))
-      }
 
       let reviewFeedback = null
       try {
