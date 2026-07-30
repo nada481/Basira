@@ -1,6 +1,6 @@
 'use client'
 
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import {
   Video, Monitor, Play, Pause, Settings, Plus, Eye, EyeOff, X,
@@ -14,6 +14,7 @@ import { DEMO_STUDENT_ID as STUDENT_ID } from '@/lib/demoUsers'
 
 function StudyPageContent() {
   const searchParams = useSearchParams()
+  const router       = useRouter()
   const taskId       = searchParams.get('taskId')
 
   const [task, setTask]         = useState(null)
@@ -87,6 +88,11 @@ function StudyPageContent() {
   }, [sessionActive, isPaused])
 
   const startSession = async () => {
+    if (!taskId) {
+      router.push('/child/Task')
+      return
+    }
+
     setElapsed(0)
     setIsPaused(false)
     setInactivityNotice(false)
